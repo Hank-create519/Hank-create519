@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+
+# Vite cache
+.vite/
+__vite_*/
+
+# App artifacts
+瀚海AI审查系统.app/
+app.asar
+app.asar.bak
+
+# Temporary files
+temp/
+backup/
+*.tmp
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local

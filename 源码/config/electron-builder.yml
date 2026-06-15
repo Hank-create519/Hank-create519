@@ -1,0 +1,16 @@
+appId: com.hanhai.review
+productName: 瀚海AI审查系统
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron-main.cjs
+  - preload.cjs
+  - package.json
+mac:
+  category: public.app-category.productivity
+  target:
+    - zip
+  artifactName: 瀚海AI审查系统-${version}.${ext}
+  hardenedRuntime: false
+compression: normal

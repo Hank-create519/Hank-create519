@@ -1,0 +1,379 @@
+import { useState, useEffect, useRef } from 'react';
+import { useReviewEngine } from '../sdk/react';
+import { PROVIDER_DEFAULTS } from '../types';
+import { updateConfig } from '../hooks/useDB';
+import type { AIConfig } from '../types';
+
+const PROVIDERS: { key: string; label: string }[] = [
+  { key: 'openai', label: 'OpenAI' },
+  { key: 'anthropic', label: 'Anthropic' },
+  { key: 'google', label: 'Gemini' },
+  { key: 'deepseek', label: 'DeepSeek' },
+  { key: 'zhipu', label: '智谱' },
+  { key: 'moonshot', label: 'Moonshot' },
+  { key: 'baichuan', label: '百川' },
+  { key: 'qwen', label: '通义千问' },
+  { key: 'wenxin', label: '文心一言' },
+  { key: 'custom', label: '自定义' },
+];
+
+let _debateCounter = 3;
+
+export default function Config() {
+  const { configs, updateConfigs } = useReviewEngine();
+  const [openRole, setOpenRole] = useState<string | null>(null);
+
+  // 防抖持久化：编辑后 500ms 写入 DB
+  const persistTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const persistConfig = (rk: string, p: Partial<AIConfig>) => {
+    const existing = persistTimers.current.get(rk);
+    if (existing) clearTimeout(existing);
+    persistTimers.current.set(rk, setTimeout(() => {
+      updateConfig(rk, p);
+      persistTimers.current.delete(rk);
+    }, 500));
+  };
+
+  const up = (rk: string, p: Partial<AIConfig>) => {
+    updateConfigs(configs.map(c => c.roleKey === rk ? { ...c, ...p } : c));
+    persistConfig(rk, p);
+  };
+  const upAll = (cs: AIConfig[]) => updateConfigs(cs);
+
+  const addDebater = () => {
+    _debateCounter++;
+    const maxId = configs.reduce((m, c) => Math.max(m, c.id), 0);
+    const newAI: AIConfig = {
+      id: maxId + 1,
+      roleKey: `ai_debate_${_debateCounter}`,
+      roleName: `自定义审查 AI ${_debateCounter}`,
+      phase: 'debate',
+      provider: 'custom',
+      apiKey: '',
+      baseUrl: 'https://api.openai.com/v1',
+      modelName: 'gpt-4o',
+      temperature: 0.3,
+      maxTokens: 4096,
+      isEnabled: true,
+      systemPrompt: '你是辩论审查 AI，隶属于Hank个人工作室审查系统。请基于审查任务说明书进行分析和论证。',
+      enableWebSearch: false,
+      skills: [],
+    };
+    upAll([...configs, newAI]);
+    setOpenRole(newAI.roleKey);
+  };
+
+  const removeDebater = (rk: string) => {
+    upAll(configs.filter(c => c.roleKey !== rk));
+    if (openRole === rk) setOpenRole(null);
+  };
+
+  return (
+    <div style={{ height: '100%', overflowY: 'auto' }}>
+      <div style={{ maxWidth: 580, margin: '0 auto', padding: '48px 40px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }} className="anim-up">
+          <div>
+            <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 4 }}>
+              AI 配置
+            </h2>
+            <p style={{ fontSize: 12.5, color: 'var(--text-tertiary)', fontWeight: 500 }}>
+              {configs.filter(c => c.phase === 'debate' && c.isEnabled).length} 个辩论 AI · 可增减
+            </p>
+          </div>
+          <button onClick={addDebater} className="btn btn-secondary" style={{ fontSize: 12, padding: '6px 14px' }}>
+            + 添加辩论 AI
+          </button>
+        </div>
+
+        {/* Prep layer */}
+        <SectionLabel label="准备层" />
+        <div>
+        {configs.filter(c => c.phase === 'prep').map((cfg, i) => (
+          <div key={cfg.roleKey} className="anim-up" style={{ animationDelay: `${i * 0.04}s` } as React.CSSProperties}>
+            <ConfigCard cfg={cfg} isOpen={openRole === cfg.roleKey}
+              onToggle={() => setOpenRole(openRole === cfg.roleKey ? null : cfg.roleKey)}
+              onUpdate={up} isFixed />
+          </div>
+        ))}
+        </div>
+
+        {/* Debate layer */}
+        <SectionLabel label={`辩论层 · ${configs.filter(c => c.phase === 'debate' && c.isEnabled).length} 个 AI + 汇总`} />
+        <div>
+        {configs.filter(c => c.phase === 'debate').map((cfg, i) => (
+          <div key={cfg.roleKey} className="anim-up" style={{ animationDelay: `${i * 0.04}s` } as React.CSSProperties}>
+            <ConfigCard cfg={cfg} isOpen={openRole === cfg.roleKey}
+              onToggle={() => setOpenRole(openRole === cfg.roleKey ? null : cfg.roleKey)}
+              onUpdate={up} isFixed={false}
+              onRemove={() => removeDebater(cfg.roleKey)} canRemove={configs.filter(c => c.phase === 'debate').length > 1} />
+          </div>
+        ))}
+        {configs.filter(c => c.phase === 'debate_summarizer').map((cfg, i) => (
+          <div key={cfg.roleKey} className="anim-up" style={{ animationDelay: `${(configs.filter(c => c.phase === 'debate').length + i) * 0.04}s` } as React.CSSProperties}>
+            <ConfigCard cfg={cfg} isOpen={openRole === cfg.roleKey}
+              onToggle={() => setOpenRole(openRole === cfg.roleKey ? null : cfg.roleKey)}
+              onUpdate={up} isFixed />
+          </div>
+        ))}
+        </div>
+
+        {/* Summary layer */}
+        <SectionLabel label="总结层" />
+        <div>
+        {configs.filter(c => c.phase === 'summary').map((cfg, i) => (
+          <div key={cfg.roleKey} className="anim-up" style={{ animationDelay: `${i * 0.04}s` } as React.CSSProperties}>
+            <ConfigCard cfg={cfg} isOpen={openRole === cfg.roleKey}
+              onToggle={() => setOpenRole(openRole === cfg.roleKey ? null : cfg.roleKey)}
+              onUpdate={up} isFixed />
+          </div>
+        ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 12px' }}>
+      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+        {label}
+      </span>
+      <div style={{
+        flex: 1, height: 1,
+        background: 'linear-gradient(90deg, rgba(79,108,247,0.15), rgba(139,92,246,0.06), transparent)',
+      }} />
+    </div>
+  );
+}
+
+function ConfigCard({
+  cfg, isOpen, onToggle, onUpdate, isFixed, onRemove, canRemove,
+}: {
+  cfg: AIConfig; isOpen: boolean; onToggle: () => void;
+  onUpdate: (rk: string, p: Partial<AIConfig>) => void;
+  isFixed: boolean; onRemove?: () => void; canRemove?: boolean;
+}) {
+  const [apiKeyLoaded, setApiKeyLoaded] = useState(false);
+  const [keyValue, setKeyValue] = useState('');
+
+  useEffect(() => {
+    const load = async () => {
+      if (window.electronAPI && cfg.roleKey) {
+        const key = await window.electronAPI.getSecureKey(cfg.roleKey);
+        if (key) {
+          setKeyValue(key);
+          onUpdate(cfg.roleKey, { apiKey: key });
+        }
+        setApiKeyLoaded(true);
+      } else {
+        setKeyValue(cfg.apiKey || '');
+        setApiKeyLoaded(true);
+      }
+    };
+    load();
+  }, []);
+
+  const handleKeyChange = async (newKey: string) => {
+    setKeyValue(newKey);
+    if (window.electronAPI && cfg.roleKey) {
+      if (newKey) {
+        await window.electronAPI.setSecureKey(cfg.roleKey, newKey);
+      } else {
+        await window.electronAPI.deleteSecureKey(cfg.roleKey);
+      }
+    }
+    onUpdate(cfg.roleKey, { apiKey: newKey });
+  };
+
+  const hasKey = keyValue && keyValue !== 'demo';
+
+  if (!apiKeyLoaded) {
+    return (
+      <div className="glass" style={{ marginBottom: 8, padding: '10px 16px' }}>
+        <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>加载中...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      marginBottom: 8,
+      borderRadius: 'var(--radius-md)',
+      border: isOpen ? '1px solid rgba(79,108,247,0.20)' : '1px solid rgba(255,255,255,0.04)',
+      transition: 'all 250ms var(--ease-out-expo)',
+      boxShadow: isOpen ? '0 0 20px rgba(79,108,247,0.08)' : 'none',
+    }}>
+      <div style={{
+        borderRadius: 'var(--radius-md)',
+        background: isOpen
+          ? 'linear-gradient(180deg, rgba(79,108,247,0.06) 0%, rgba(12,12,48,0.65) 100%)'
+          : 'rgba(255,255,255,0.015)',
+        transition: 'background 250ms var(--ease-out-expo)',
+      }}>
+        {/* Card header */}
+        <button
+          onClick={onToggle}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+            padding: '12px 16px', textAlign: 'left', cursor: 'pointer',
+            border: 'none', background: 'transparent',
+            borderRadius: 'var(--radius-md)',
+            color: 'inherit',
+            transition: 'background 150ms',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.01)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+        >
+          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-tertiary)', width: 28, flexShrink: 0 }}>
+            {isFixed ? `#${cfg.id}` : '⚡'}
+          </span>
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <input
+              type="text"
+              value={cfg.roleName}
+              onChange={e => { e.stopPropagation(); onUpdate(cfg.roleKey, { roleName: e.target.value }); }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                width: '100%', background: 'transparent', border: 'none', outline: 'none',
+                fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em',
+              }}
+            />
+            {cfg.systemPrompt && (
+              <span style={{
+                fontSize: 10, color: 'var(--text-tertiary)', lineHeight: 1.3,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                maxWidth: '100%',
+              }}>
+                {cfg.systemPrompt.replace(/\n/g, ' ').slice(0, 60)}{cfg.systemPrompt.length > 60 ? '…' : ''}
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: 10.5, fontWeight: 500, color: hasKey ? 'var(--text-secondary)' : 'var(--text-tertiary)', flexShrink: 0 }}>
+            {hasKey ? (PROVIDERS.find(p => p.key === cfg.provider)?.label || cfg.provider) : '未配置'}
+          </span>
+          <span
+            className={`status-dot ${hasKey ? 'active' : 'idle'}`}
+            style={hasKey ? undefined : { background: '#54545a', animation: 'none' }}
+          />
+          <span style={{
+            fontSize: 10, color: 'var(--text-tertiary)',
+            transform: isOpen ? 'rotate(180deg)' : 'none',
+            transition: 'transform 300ms',
+          }}>▼</span>
+          {!isFixed && onRemove && canRemove && (
+            <button
+              onClick={e => { e.stopPropagation(); onRemove(); }}
+              style={{
+                fontSize: 10, color: 'var(--err)', opacity: 0.5, border: 'none', background: 'transparent',
+                cursor: 'pointer', marginLeft: 4,
+                transition: 'opacity 150ms',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+              onMouseLeave={e => (e.currentTarget.style.opacity = '0.5')}
+            >删除</button>
+          )}
+        </button>
+
+        {/* Expanded content */}
+        {isOpen && (
+          <div
+            className="config-card-content open"
+            style={{ borderTop: '1px solid rgba(255,255,255,0.02)' }}
+          >
+            <div>
+            <div style={{ padding: '0 16px 20px', paddingTop: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Provider + Model */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                      提供商
+                    </label>
+                    <select
+                      value={cfg.provider}
+                      onChange={e => {
+                        const d = PROVIDER_DEFAULTS[e.target.value];
+                        onUpdate(cfg.roleKey, { provider: e.target.value, baseUrl: d?.baseUrl || '', modelName: d?.modelName || '' });
+                      }}
+                      className="input" style={{ fontSize: 13, padding: '7px 10px' }}
+                    >
+                      {PROVIDERS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                      模型
+                    </label>
+                    <input
+                      type="text" value={cfg.modelName}
+                      onChange={e => onUpdate(cfg.roleKey, { modelName: e.target.value })}
+                      className="input" style={{ fontSize: 13, padding: '7px 10px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* API Key */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                    API Key {window.electronAPI ? '(安全加密存储)' : ''}
+                  </label>
+                  <input
+                    type="password"
+                    value={keyValue}
+                    onChange={e => handleKeyChange(e.target.value)}
+                    placeholder="sk-...（必填）"
+                    className="input" style={{ fontSize: 13, padding: '7px 10px' }}
+                  />
+                </div>
+
+                {/* Base URL */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                    Base URL
+                  </label>
+                  <input
+                    type="text" value={cfg.baseUrl}
+                    onChange={e => onUpdate(cfg.roleKey, { baseUrl: e.target.value })}
+                    className="input" style={{ fontSize: 13, padding: '7px 10px' }}
+                  />
+                </div>
+
+                {/* Temperature */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                    Temperature · {cfg.temperature}
+                  </label>
+                  <input
+                    type="range" min="0" max="2" step="0.1" value={cfg.temperature}
+                    onChange={e => onUpdate(cfg.roleKey, { temperature: parseFloat(e.target.value) })}
+                    style={{ width: '100%', accentColor: '#4f6cf7', height: 3 }}
+                  />
+                </div>
+
+                {/* System Prompt */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.08em', marginBottom: 6 }}>
+                    系统提示词
+                  </label>
+                  <textarea
+                    value={cfg.systemPrompt} rows={isFixed ? 5 : 6}
+                    onChange={e => onUpdate(cfg.roleKey, { systemPrompt: e.target.value })}
+                    className="input"
+                    style={{
+                      fontSize: 12, lineHeight: 1.6, resize: 'vertical', padding: '8px 10px',
+                      fontFamily: 'ui-monospace, SF Mono, monospace', minHeight: 80,
+                    }}
+                    placeholder={isFixed ? '' : '自定义提示词...'}
+                  />
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

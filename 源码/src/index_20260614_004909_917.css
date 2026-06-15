@@ -1,0 +1,595 @@
+@import "tailwindcss";
+
+/* ============================================
+   Aura.Build — Vibrant Depth Design System
+   ============================================ */
+
+@layer base {
+  :root {
+    /* ── 背景层级：深蓝紫渐变体系 ── */
+    --bg: #080814;
+    --bg-elevated: #0e0e22;
+    --bg-tertiary: #141430;
+
+    /* ── 边框 ── */
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-hover: rgba(255, 255, 255, 0.14);
+    --border-focus: rgba(94, 106, 210, 0.30);
+
+    /* ── 文字层级 ── */
+    --text: rgba(255, 255, 255, 0.92);
+    --text-soft: rgba(255, 255, 255, 0.58);
+    --text-dim: rgba(255, 255, 255, 0.36);
+
+    /* ── 强调色：鲜艳蓝紫渐变 ── */
+    --accent: #5e6ad2;
+    --accent-hover: #7b83f0;
+    --accent-dim: rgba(94, 106, 210, 0.12);
+
+    /* ── 渐变体系 ── */
+    --accent-gradient: linear-gradient(135deg, #5e6ad2 0%, #8b5cf6 50%, #a78bfa 100%);
+    --accent-gradient-subtle: linear-gradient(135deg, rgba(94,106,210,0.18) 0%, rgba(139,92,246,0.08) 50%, transparent 100%);
+    --bg-gradient: linear-gradient(180deg, #080814 0%, #0c0c24 35%, #0a0a1a 65%, #080814 100%);
+    --title-gradient: linear-gradient(180deg, #f0f0ff 0%, #b8c2ff 35%, #7b86f0 65%, #5e6ad2 90%);
+
+    /* ── 双阴影系统 (Stratum) ── */
+    --shadow-depth: 0 1px 2px rgba(0,0,0,0.20), 0 4px 16px rgba(0,0,0,0.12);
+    --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.06);
+    --shadow-glow: 0 0 20px rgba(94,106,210,0.15), 0 0 60px rgba(139,92,246,0.08);
+
+    /* ── 状态色 ── */
+    --success: #10b981;
+    --err: #f43f5e;
+    --warn: #f59e0b;
+
+    /* ── 动效 ── */
+    --transition-fast: 120ms ease;
+    --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* ── 圆角体系 ── */
+    --radius-sm: 5px;
+    --radius: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+  }
+}
+
+/* ===== 日间模式 ===== */
+[data-theme="light"] {
+  --bg: #f4f5fa;
+  --bg-elevated: #ffffff;
+  --bg-tertiary: #eaecf5;
+
+  --border-subtle: rgba(0, 0, 0, 0.05);
+  --border: rgba(0, 0, 0, 0.09);
+  --border-hover: rgba(0, 0, 0, 0.15);
+  --border-focus: rgba(94, 106, 210, 0.35);
+
+  --text: rgba(0, 0, 0, 0.88);
+  --text-soft: rgba(0, 0, 0, 0.55);
+  --text-dim: rgba(0, 0, 0, 0.35);
+
+  --accent: #4f5cc4;
+  --accent-hover: #6370e0;
+  --accent-dim: rgba(94, 106, 210, 0.08);
+
+  --accent-gradient: linear-gradient(135deg, #4f5cc4 0%, #7c5ce7 40%, #9b8cf7 80%, #b8c5fc 100%);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(94,106,210,0.10) 0%, rgba(124,92,231,0.05) 50%, rgba(184,197,252,0.03) 100%);
+  --bg-gradient: linear-gradient(180deg, #f4f5fa 0%, #ebedf6 30%, #eef0f8 55%, #ebedf6 75%, #f4f5fa 100%);
+  --title-gradient: linear-gradient(180deg, #1a1a2e 0%, #3a3f7a 35%, #4f5cc4 65%, #7b83f0 90%);
+
+  --shadow-depth: 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.8);
+  --shadow-glow: 0 0 20px rgba(94,106,210,0.10), 0 0 60px rgba(124,92,231,0.05);
+
+  --success: #059669;
+  --err: #e11d48;
+  --warn: #ea580c;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body, #root { height: 100%; overflow: hidden; }
+
+body {
+  background: var(--bg-gradient);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+    'PingFang SC', 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv02','cv03','cv04','cv11','ss01';
+  letter-spacing: -0.011em;
+  line-height: 1.6;
+}
+
+/* ============================================
+   Glass 工具类
+   ============================================ */
+
+/* 基础 glass surface */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-depth), var(--shadow-inset);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-hover);
+  box-shadow: var(--shadow-depth), var(--shadow-inset);
+}
+
+/* Gradient border shell — aura.build Stratum */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(139,92,246,0.15), rgba(94,106,210,0.10));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0,0,0,0.06);
+}
+
+[data-theme="light"] .glass-strong {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+[data-theme="light"] .gradient-border::before {
+  background: linear-gradient(135deg, rgba(94,106,210,0.18), rgba(124,92,231,0.12), rgba(94,106,210,0.08));
+}
+
+/* ============================================
+   表面卡片
+   ============================================ */
+.surface {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-depth);
+  transition: all var(--transition);
+}
+.surface:hover {
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-depth), var(--shadow-glow);
+}
+
+.surface-accent {
+  background: var(--accent-dim);
+  border: 1px solid rgba(94, 106, 210, 0.14);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-depth);
+  transition: all var(--transition);
+}
+.surface-accent:hover {
+  border-color: rgba(94, 106, 210, 0.24);
+  background: rgba(94, 106, 210, 0.08);
+  box-shadow: var(--shadow-depth), var(--shadow-glow);
+}
+
+.surface-subtle {
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  transition: border-color var(--transition);
+}
+.surface-subtle:hover {
+  border-color: var(--border);
+}
+
+/* ============================================
+   按钮 — Aura.Build Stratum Skeuo-Buttons
+   ============================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 500;
+  letter-spacing: -0.01em; cursor: pointer; border: none; line-height: 1.2;
+  transition: all var(--transition); user-select: none; white-space: nowrap;
+  position: relative;
+}
+.btn:active { transform: scale(0.97); }
+
+.btn-primary {
+  background: #e4e4e7; color: #09090b;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.btn-primary:hover {
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6), 0 0 20px rgba(228,228,231,0.15);
+}
+
+.btn-accent {
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(94,106,210,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  position: relative;
+}
+.btn-accent:hover {
+  box-shadow: 0 4px 16px rgba(94,106,210,0.35), 0 0 30px rgba(139,92,246,0.20), inset 0 1px 0 rgba(255,255,255,0.2);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(255,255,255,0.03); color: var(--text-soft);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-inset);
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--border-hover); color: var(--text);
+  box-shadow: var(--shadow-inset), 0 0 12px rgba(94,106,210,0.06);
+}
+
+.btn-ghost {
+  background: transparent; color: var(--text-dim);
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.03); color: var(--text-soft);
+}
+
+.btn-danger {
+  background: transparent; color: var(--err);
+  border: 1px solid transparent;
+}
+.btn-danger:hover {
+  background: rgba(244, 63, 94, 0.06);
+  border-color: rgba(244, 63, 94, 0.14);
+}
+
+/* ============================================
+   输入框
+   ============================================ */
+.input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 13px; font-weight: 400; color: var(--text);
+  transition: all var(--transition);
+  letter-spacing: -0.01em; outline: none;
+}
+.input:hover {
+  border-color: var(--border-hover);
+  background: rgba(255, 255, 255, 0.05);
+}
+.input:focus {
+  border-color: var(--border-focus);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 1px var(--border-focus), 0 0 12px rgba(94,106,210,0.08);
+}
+.input::placeholder { color: var(--text-dim); }
+
+.textarea {
+  resize: vertical; min-height: 120px;
+  line-height: 1.65; font-size: 13px;
+}
+
+/* ============================================
+   标签
+   ============================================ */
+.tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 11.5px; font-weight: 500; border: 1px solid var(--border-subtle);
+  color: var(--text-dim); cursor: pointer;
+  transition: all var(--transition); user-select: none;
+}
+.tag.active {
+  background: var(--accent-dim); color: var(--accent);
+  border-color: rgba(94, 106, 210, 0.30);
+}
+.tag:hover:not(.active) {
+  border-color: var(--border); color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================
+   分割线
+   ============================================ */
+.divider {
+  height: 1px; background: var(--border-subtle);
+  border: none; margin: 0;
+}
+
+/* ============================================
+   动画 Keyframes
+   ============================================ */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.70; }
+}
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(94, 106, 210, 0.3); }
+  70% { box-shadow: 0 0 0 8px rgba(94, 106, 210, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(94, 106, 210, 0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(94,106,210,0.15), 0 0 60px rgba(139,92,246,0.08); }
+  50% { box-shadow: 0 0 30px rgba(94,106,210,0.25), 0 0 80px rgba(139,92,246,0.14); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-8px) rotate(1deg); }
+  66% { transform: translateY(4px) rotate(-1deg); }
+}
+@keyframes float-slow {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(20px, -15px); }
+  50% { transform: translate(-10px, 10px); }
+  75% { transform: translate(-20px, -5px); }
+}
+@keyframes flowing-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+@keyframes text-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.anim-up { animation: fade-up 0.25s ease both; }
+.anim-fade { animation: fade-in 0.15s ease both; }
+.anim-in { animation: fade-in 0.12s ease both; }
+
+/* ============================================
+   Config 卡片交错入场（更快）
+   ============================================ */
+.config-stagger > * {
+  opacity: 0;
+  animation: fade-up 0.25s ease forwards;
+}
+.config-stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.config-stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.config-stagger > *:nth-child(3) { animation-delay: 0.08s; }
+.config-stagger > *:nth-child(4) { animation-delay: 0.11s; }
+.config-stagger > *:nth-child(5) { animation-delay: 0.14s; }
+.config-stagger > *:nth-child(6) { animation-delay: 0.17s; }
+.config-stagger > *:nth-child(7) { animation-delay: 0.20s; }
+.config-stagger > *:nth-child(8) { animation-delay: 0.23s; }
+
+/* Config 卡片展开 */
+.config-card-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.25s ease;
+}
+.config-card-content.open {
+  grid-template-rows: 1fr;
+}
+.config-card-content > div { overflow: hidden; }
+
+/* 通用 stagger（更快） */
+.stagger > * { opacity: 0; animation: fade-up 0.22s ease forwards; }
+.stagger > *:nth-child(1) { animation-delay: 0.01s; }
+.stagger > *:nth-child(2) { animation-delay: 0.03s; }
+.stagger > *:nth-child(3) { animation-delay: 0.05s; }
+.stagger > *:nth-child(4) { animation-delay: 0.07s; }
+.stagger > *:nth-child(5) { animation-delay: 0.09s; }
+.stagger > *:nth-child(6) { animation-delay: 0.11s; }
+.stagger > *:nth-child(7) { animation-delay: 0.13s; }
+.stagger > *:nth-child(8) { animation-delay: 0.15s; }
+
+.dot-breathe { animation: breathe 2s ease-in-out infinite; }
+.pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+.float { animation: float 6s ease-in-out infinite; }
+.float-slow { animation: float-slow 12s ease-in-out infinite; }
+
+/* ============================================
+   进度条
+   ============================================ */
+.progress {
+  height: 2px; background: rgba(255, 255, 255, 0.04); border-radius: 1px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 1px;
+  background: var(--text-soft);
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.progress-accent .progress-fill {
+  background: var(--accent);
+}
+
+/* ============================================
+   AI 输出文本
+   ============================================ */
+.ai-text {
+  line-height: 1.68; font-size: 12.5px; font-weight: 400;
+  color: var(--text-soft); white-space: pre-wrap; word-break: break-word;
+}
+
+/* ============================================
+   滚动条
+   ============================================ */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.05); border-radius: 100px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.10); }
+
+::selection { background: rgba(94, 106, 210, 0.25); color: #fff; }
+
+/* ============================================
+   页面入场
+   ============================================ */
+.page-enter { animation: fade-up 0.2s ease both; }
+
+/* ============================================
+   状态指示点
+   ============================================ */
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent), 0 0 16px rgba(139,92,246,0.3);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+.status-dot.success { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.status-dot.error { background: var(--err); box-shadow: 0 0 6px var(--err); }
+.status-dot.idle { background: var(--text-dim); }
+
+/* ============================================
+   颜色工具类
+   ============================================ */
+.text-err { color: var(--err); }
+.text-success { color: var(--success); }
+.text-accent { color: var(--accent); }
+.bg-bg { background: var(--bg); }
+.bg-elevated { background: var(--bg-elevated); }
+.text-text { color: var(--text); }
+.text-text-soft { color: var(--text-soft); }
+.text-text-dim { color: var(--text-dim); }
+
+/* ============================================
+   单行截断
+   ============================================ */
+.truncate {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ============================================
+   Ambience: 4层大半径径向渐变
+   ============================================ */
+.ambience {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    /* 顶弧强光 — 蓝紫 */
+    radial-gradient(ellipse 75% 45% at 50% 0%, rgba(94, 106, 210, 0.07) 0%, transparent 55%),
+    /* 右上暖光 — 紫调 */
+    radial-gradient(ellipse 50% 50% at 85% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 60%),
+    /* 左下冷光 — 蓝调 */
+    radial-gradient(ellipse 50% 40% at 15% 80%, rgba(94, 106, 210, 0.04) 0%, transparent 60%),
+    /* 底弧微光 — 收束 */
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(139, 92, 246, 0.03) 0%, transparent 70%);
+}
+
+/* ============================================
+   渐变文字
+   ============================================ */
+.text-gradient {
+  background: var(--title-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 渐变流动文字 */
+.text-shimmer {
+  background: linear-gradient(90deg, #5e6ad2, #8b5cf6, #a78bfa, #8b5cf6, #5e6ad2);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: text-shimmer 3s linear infinite;
+}
+
+/* ============================================
+   渐变分割线
+   ============================================ */
+.divider-accent {
+  height: 1px; border: none; margin: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(94,106,210,0.12) 20%, rgba(139,92,246,0.20) 50%, rgba(94,106,210,0.12) 80%, transparent 100%);
+}
+
+/* ============================================
+   日间模式覆盖
+   ============================================ */
+[data-theme="light"] body {
+  background: var(--bg-gradient);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.10);
+}
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.18);
+}
+
+[data-theme="light"] ::selection {
+  background: rgba(94, 106, 210, 0.18);
+  color: #111;
+}
+
+[data-theme="light"] .ambience {
+  background:
+    radial-gradient(ellipse 75% 45% at 50% 0%, rgba(94,106,210,0.04) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 50% at 85% 20%, rgba(124,92,231,0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 15% 80%, rgba(94,106,210,0.02) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 30% at 50% 100%, rgba(124,92,231,0.02) 0%, transparent 70%);
+}
+
+[data-theme="light"] .divider-accent {
+  background: linear-gradient(90deg, transparent 0%, rgba(94,106,210,0.08) 20%, rgba(124,92,231,0.12) 50%, rgba(94,106,210,0.08) 80%, transparent 100%);
+}
+
+[data-theme="light"] .surface {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03), 0 4px 8px rgba(0,0,0,0.04);
+}
+[data-theme="light"] .surface:hover {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05), 0 8px 16px rgba(0,0,0,0.06), 0 0 30px rgba(94,106,210,0.06);
+}
+
+[data-theme="light"] .surface-accent {
+  box-shadow: var(--shadow-depth);
+}
+[data-theme="light"] .surface-accent:hover {
+  box-shadow: var(--shadow-depth), 0 0 20px rgba(94,106,210,0.08);
+}
+
+[data-theme="light"] .btn-primary {
+  background: #1a1a2e; color: #fff;
+}
+[data-theme="light"] .btn-primary:hover {
+  background: #2a2a44;
+}
+
+[data-theme="light"] .btn-accent {
+  background: var(--accent-gradient);
+}
+[data-theme="light"] .btn-accent:hover {
+  background: var(--accent-gradient);
+}
+
+[data-theme="light"] .btn-secondary {
+  background: rgba(0,0,0,0.02);
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+[data-theme="light"] .status-dot.active {
+  box-shadow: 0 0 6px var(--accent), 0 0 12px rgba(94,106,210,0.2);
+}
+
+[data-theme="light"] .input:focus {
+  box-shadow: 0 0 0 1px var(--border-focus), 0 0 8px rgba(94,106,210,0.06);
+}

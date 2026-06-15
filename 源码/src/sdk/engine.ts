@@ -1,0 +1,492 @@
+// Hank个人工作室 AI审查系统 · 审查引擎 v1.0
+
+import type { AIConfig, ReviewTask, ReviewOutput, FinalReport, ReviewProgress, PromptInput } from '../types';
+import { DEFAULT_CONFIGS } from '../types';
+
+// ============ 外部 AI 调用 ============
+
+async function callAI(cfg: AIConfig, messages: { role: string; content: string }[], signal?: AbortSignal): Promise<string> {
+  if (!cfg.apiKey || cfg.apiKey === 'demo') {
+    throw new Error(`角色「${cfg.roleName}」未配置有效的 API Key，请在配置页面填写真实 API Key 后重试。`);
+  }
+
+  const controller = new AbortController();
+  const link = signal;
+  if (link) {
+    link.addEventListener('abort', () => controller.abort());
+  }
+
+  const res = await fetch(cfg.baseUrl || 'https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${cfg.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: cfg.modelName || 'gpt-4o',
+      messages,
+      temperature: cfg.temperature ?? 0.3,
+      max_tokens: cfg.maxTokens || 4096,
+    }),
+    signal: controller.signal,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`AI 调用失败 [${res.status}]: ${text.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+// ============ 轮数判定（内嵌算法，不调用 AI） ============
+
+/** 复杂度信号词及权重 */
+const COMPLEXITY_SIGNALS: [RegExp, number][] = [
+  // 高复杂度信号（每个 +3）
+  [/合规|监管|法律风险|诉讼|判刑|刑事/, 3],
+  [/战略决策|投资|收购|上市|融资/, 3],
+  [/多方利益|利益冲突|博弈|竞争格局/, 3],
+  [/安全漏洞|数据泄露|隐私合规|GDPR|个人信息保护/, 3],
+  // 中复杂度信号（每个 +2）
+  [/成本.*分析|ROI|预算.*评估|财务.*风险/, 2],
+  [/技术选型|架构.*设计|系统.*重构|性能.*瓶颈/, 2],
+  [/竞品|市场.*分析|用户.*研究|产品.*定位/, 2],
+  [/多维度|多个.*方面|以下.*几点|几.*维度/, 2],
+  [/复杂|深度|深入|全面.*评估|综合.*考量/, 2],
+  // 低复杂度信号（每个 +1）
+  [/风险|隐患|问题|缺陷|不足|改进/, 1],
+  [/建议|推荐|方案|策略|对策/, 1],
+];
+
+/** 维度词：出现越多说明问题越复杂 */
+const DIMENSION_MARKERS = [
+  /维度[：:]\s*[一二三四五六七八九十\d]/g,
+  /第[一二三四五六七八九十\d]\s*[，,]/g,
+  /^\d+[.、]/gm,
+];
+
+/**
+ * 基于提取器输出内容的本地复杂度估算。
+ * 不需要调用 AI，零成本、毫秒级。
+ */
+function estimateRoundCount(
+  extractorOutputs: { roleName: string; outputContent: string }[],
+  userInput: string,
+): number {
+  const combined = extractorOutputs.map(o => o.outputContent).join('\n');
+  const totalText = combined + '\n' + userInput;
+
+  // 1. 信号词评分
+  let signalScore = 0;
+  for (const [pattern, weight] of COMPLEXITY_SIGNALS) {
+    const matches = totalText.match(new RegExp(pattern.source, 'gi'));
+    if (matches) signalScore += weight * Math.min(matches.length, 3); // 每种最多 ×3
+  }
+
+  // 2. 维度数量检测
+  let dimensionCount = 0;
+  for (const marker of DIMENSION_MARKERS) {
+    const m = totalText.match(new RegExp(marker.source, 'gi'));
+    if (m) dimensionCount += m.length;
+  }
+
+  // 3. 内容长度因子
+  const lengthScore = Math.min(Math.floor(combined.length / 800), 5); // 每 800 字 +1，上限 5
+
+  // 4. 综合评分 → 轮数
+  const total = signalScore + dimensionCount * 1.5 + lengthScore;
+
+  if (total >= 28) return 10;
+  if (total >= 24) return 9;
+  if (total >= 20) return 8;
+  if (total >= 17) return 7;
+  if (total >= 14) return 6;
+  if (total >= 12) return 5;
+  if (total >= 9)  return 4;
+  if (total >= 5)  return 3;
+  if (total >= 2)  return 2;
+  return 1;
+}
+
+// ============ 引擎状态管理 ============
+
+export interface EngineState {
+  configs: AIConfig[];
+  task: ReviewTask | null;
+  outputs: ReviewOutput[];
+  finalReport: FinalReport | null;
+  progress: ReviewProgress;
+  isRunning: boolean;
+  isPaused: boolean;
+  abortController: AbortController | null;
+  pausedResolve: (() => void) | null;
+}
+
+let _state: EngineState = {
+  configs: DEFAULT_CONFIGS,
+  task: null,
+  outputs: [],
+  finalReport: null,
+  progress: { phase: 'idle', completedSteps: 0, totalSteps: 0 },
+  isRunning: false,
+  isPaused: false,
+  abortController: null,
+  pausedResolve: null,
+};
+
+let _listeners: Set<() => void> = new Set();
+
+// === 持久化回调（由 App 层注入，支持 DB/文件等后端） ===
+type PersistHandler = (action: 'task' | 'outputs' | 'report', data: any) => void;
+let _persist: PersistHandler | null = null;
+export function setPersistHandler(fn: PersistHandler | null) { _persist = fn; }
+
+function notify() {
+  _listeners.forEach(fn => fn());
+}
+
+export function subscribe(fn: () => void) {
+  _listeners.add(fn);
+  return () => { _listeners.delete(fn); };
+}
+
+export function getState(): Readonly<EngineState> {
+  return _state;
+}
+
+export function setConfigs(configs: AIConfig[]) {
+  _state.configs = configs;
+  notify();
+}
+
+export async function startReview(title: string, userInput: string, _promptInputs?: PromptInput[]) {
+  if (_state.isRunning) return;
+
+  const enabledConfigs = _state.configs.filter(c => c.isEnabled);
+  if (enabledConfigs.length === 0) {
+    throw new Error('没有启用任何 AI 配置');
+  }
+
+  const abortController = new AbortController();
+  _state.abortController = abortController;
+  _state.isRunning = true;
+  _state.isPaused = false;
+  _state.outputs = [];
+  _state.finalReport = null;
+
+  const taskId = Date.now().toString();
+
+  _state.task = {
+    id: taskId,
+    title,
+    status: 'preparing',
+    totalRounds: 0,
+    createdAt: new Date().toISOString(),
+  };
+  notify();
+  _persist?.('task', { ..._state.task, userInput });
+
+  // Get prep configs (round_judge 不再调用 API，仅保留配置项）
+  const prepConfigs = enabledConfigs.filter(c => c.phase === 'prep' && c.roleKey !== 'round_judge');
+  const debateConfigs = enabledConfigs.filter(c => c.phase === 'debate');
+  const summarizerConfigs = enabledConfigs.filter(c => c.phase === 'debate_summarizer');
+  const finalConfigs = enabledConfigs.filter(c => c.phase === 'summary');
+
+  let totalRounds = 3;
+  let allSteps = prepConfigs.length + (debateConfigs.length + summarizerConfigs.length + 1) * 3 + finalConfigs.length;
+  let completedSteps = 0;
+
+  function updateProgress(phase: ReviewProgress['phase'], currentRound?: number) {
+    completedSteps++;
+    _state.progress = {
+      phase,
+      completedSteps,
+      totalSteps: allSteps,
+      currentRound: currentRound ?? _state.progress.currentRound,
+      totalRounds,
+    };
+    notify();
+  }
+
+  let outputIdCounter = 0;
+
+  async function runPhase(configs: AIConfig[], round: number, systemMsg: string, userMsg: string, phase: string): Promise<void> {
+    for (const cfg of configs) {
+      if (abortController.signal.aborted) return;
+
+      // Check pause
+      while (_state.isPaused) {
+        await new Promise<void>(resolve => { _state.pausedResolve = resolve; });
+        if (abortController.signal.aborted) return;
+      }
+
+      const startTime = Date.now();
+      const outputId = ++outputIdCounter;
+
+      _state.outputs.push({
+        id: outputId,
+        roundNumber: round,
+        roleName: cfg.roleName,
+        roleKey: cfg.roleKey,
+        status: 'running',
+        outputContent: '',
+        responseTimeMs: 0,
+      });
+      notify();
+
+      try {
+        const result = await callAI(cfg, [
+          { role: 'system', content: systemMsg },
+          { role: 'user', content: userMsg },
+        ], abortController.signal);
+
+        const elapsed = Date.now() - startTime;
+
+        _state.outputs = _state.outputs.map(o =>
+          o.id === outputId ? { ...o, status: 'completed' as const, outputContent: result, responseTimeMs: elapsed } : o
+        );
+      } catch (err: any) {
+        const elapsed = Date.now() - startTime;
+        _state.outputs = _state.outputs.map(o =>
+          o.id === outputId ? { ...o, status: 'error' as const, outputContent: `错误: ${err.message}`, responseTimeMs: elapsed } : o
+        );
+      }
+
+      updateProgress(phase as any, round);
+    }
+  }
+
+  try {
+    // Phase 1: Preparation
+    _state.task = { ..._state.task!, status: 'preparing' };
+    notify();
+
+    for (const cfg of prepConfigs) {
+      await runPhase([cfg], 0, cfg.systemPrompt, userInput, 'preparation');
+    }
+
+    // ---- 本地算法判定辩论轮数（内嵌，不调用 AI） ----
+    const extractorOutputs = _state.outputs.filter(o => o.roundNumber === 0 && o.status === 'completed' && (o.roleKey === 'extractor' || o.roleKey === 'extractor2'));
+    totalRounds = estimateRoundCount(extractorOutputs, userInput);
+    totalRounds = Math.max(1, Math.min(10, totalRounds));
+
+    // 用实际轮数重新计算总步数并更新任务
+    allSteps = completedSteps + (debateConfigs.length + summarizerConfigs.length + 1) * totalRounds + finalConfigs.length;
+    _state.progress = { ..._state.progress, totalSteps: allSteps, totalRounds };
+    _state.task = { ..._state.task!, totalRounds };
+    notify();
+    _persist?.('task', _state.task);
+
+    // Track debate outputs for context
+    const debateHistory: { roleName: string; content: string }[] = [];
+
+    // Phase 2: Debate rounds
+    _state.task = { ..._state.task!, status: 'debating' };
+    _state.progress = { ..._state.progress, currentRound: 1 };
+    notify();
+
+    for (let round = 1; round <= totalRounds; round++) {
+      _state.progress = { ..._state.progress, currentRound: round };
+      notify();
+
+      // Debate round
+      const debateMsg = round === 1
+        ? userInput
+        : `【第 ${round} 轮辩论】\n请基于前几轮的辩论结果，进一步深化分析。\n\n前序讨论摘要：\n${debateHistory.slice(-3).map(d => `[${d.roleName}]: ${d.content.slice(0, 300)}`).join('\n\n')}`;
+
+      for (const cfg of debateConfigs) {
+        const result = await callAI(cfg, [
+          { role: 'system', content: cfg.systemPrompt },
+          { role: 'user', content: debateMsg },
+        ], abortController.signal);
+
+        debateHistory.push({ roleName: cfg.roleName, content: result });
+
+        _state.outputs.push({
+          id: ++outputIdCounter,
+          roundNumber: round,
+          roleName: cfg.roleName,
+          roleKey: cfg.roleKey,
+          status: 'completed',
+          outputContent: result,
+          responseTimeMs: 0,
+        });
+        updateProgress('debate', round);
+      }
+
+      // Summarizer
+      for (const cfg of summarizerConfigs) {
+        const roundDebates = debateHistory.slice(-debateConfigs.length);
+        const summaryInput = `请对第 ${round} 轮辩论进行汇总：\n\n${roundDebates.map(d => `[${d.roleName}]:\n${d.content}`).join('\n\n')}`;
+
+        await runPhase([cfg], round, cfg.systemPrompt, summaryInput, 'debate');
+      }
+
+      // Judge
+      updateProgress('debate', round);
+    }
+
+    // Phase 3: Summary
+    _state.task = { ..._state.task!, status: 'summarizing' };
+    notify();
+
+    const allContent = _state.outputs.map(o => `[${o.roleName} (轮${o.roundNumber})]:\n${o.outputContent}`).join('\n\n');
+    const summaryMsg = `请基于以下全部审查内容生成最终报告：\n\n${allContent}`;
+    for (const cfg of finalConfigs) {
+      let summaryOk = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          if (abortController.signal.aborted) break;
+          await new Promise<void>(r => setTimeout(r, 3000));
+        }
+        try {
+          await runPhase([cfg], 999, cfg.systemPrompt, summaryMsg, 'summary');
+        } catch {
+          // runPhase 内部已记录错误，继续重试
+        }
+        const lastOut = _state.outputs[_state.outputs.length - 1];
+        if (lastOut && lastOut.status === 'completed') {
+          summaryOk = true;
+          break;
+        }
+      }
+      if (!summaryOk && !abortController.signal.aborted) {
+        throw new Error('最终报告生成失败（重试 3 次后仍失败）');
+      }
+    }
+
+    const finalContent = _state.outputs
+      .filter(o => o.roundNumber === 999 && o.status === 'completed')
+      .map(o => o.outputContent)
+      .join('\n\n');
+
+    if (!finalContent) {
+      throw new Error('最终报告生成为空');
+    }
+
+    _state.task = {
+      ..._state.task!,
+      status: 'completed',
+      completedAt: new Date().toISOString(),
+    };
+
+    if (finalContent) {
+      _state.finalReport = {
+        taskId,
+        reportContent: finalContent,
+        generatedAt: new Date().toISOString(),
+      };
+      _persist?.('report', _state.finalReport);
+    }
+
+    _state.progress = { ..._state.progress, phase: 'completed' };
+    _persist?.('task', _state.task);
+    _persist?.('outputs', _state.outputs.map(o => ({ ...o, taskId })));
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      _state.task = { ..._state.task!, status: 'error', errorMessage: '用户停止' };
+    } else {
+      _state.task = { ..._state.task!, status: 'error', errorMessage: err.message };
+    }
+    _state.progress = { ..._state.progress, phase: 'error' };
+    _persist?.('task', _state.task);
+  } finally {
+    _state.isRunning = false;
+    _state.isPaused = false;
+    _state.abortController = null;
+    notify();
+  }
+}
+
+export function pause() {
+  _state.isPaused = true;
+  notify();
+}
+
+export function resume() {
+  _state.isPaused = false;
+  _state.pausedResolve?.();
+  _state.pausedResolve = null;
+  notify();
+}
+
+export function stop() {
+  _state.abortController?.abort();
+  _state.isPaused = false;
+  _state.pausedResolve?.();
+  _state.pausedResolve = null;
+  notify();
+}
+
+export function supplement(text: string) {
+  // Currently not implemented for mock mode
+  // In production, this would inject additional context into the running debate
+  console.log('[HankReview] Supplement received:', text.slice(0, 100));
+}
+
+// ============ ReviewEngine 类包装（供 React Provider 使用） ============
+
+type Listener = () => void;
+
+export class ReviewEngine {
+  private listeners = new Map<string, Set<Listener>>();
+  private unsub: (() => void) | null = null;
+
+  constructor(_options?: unknown) {
+    this.unsub = subscribe(() => {
+      const s = getState();
+      if (s.isRunning && !this._wasRunning) {
+        this._wasRunning = true;
+        this.emit('task_created');
+      }
+      if (!s.isRunning && this._wasRunning && s.task?.status === 'completed') {
+        this._wasRunning = false;
+        this.emit('task_complete');
+      } else if (!s.isRunning && this._wasRunning && s.task?.status === 'error') {
+        this._wasRunning = false;
+        this.emit('task_error');
+      }
+      this.emit('progress');
+      this.emit('ai_complete');
+    });
+  }
+
+  private _wasRunning = false;
+
+  emit(event: string) {
+    this.listeners.get(event)?.forEach(fn => fn());
+  }
+
+  on(event: string, fn: Listener) {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+    this.listeners.get(event)!.add(fn);
+    return () => this.listeners.get(event)?.delete(fn);
+  }
+
+  getState() { return getState(); }
+  getConfigs() { return getState().configs; }
+  updateConfigs(configs: AIConfig[]) { setConfigs(configs); }
+
+  async runReview(title: string, input: string) {
+    try {
+      await startReview(title, input);
+      const s = getState();
+      if (s.task?.status === 'completed') {
+        this.emit('task_complete');
+      } else if (s.task?.status === 'error') {
+        this.emit('task_error');
+      }
+    } catch {
+      this.emit('task_error');
+    }
+  }
+
+  pause() { pause(); this.emit('paused'); }
+  resume() { resume(); this.emit('resumed'); }
+  stop() { stop(); this.emit('stopped'); }
+  supplement(text: string) { supplement(text); }
+
+  destroy() { this.unsub?.(); }
+}
