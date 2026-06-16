@@ -75,37 +75,58 @@ export const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
 1. 从用户输入中提取核心要素（主题、关键实体、上下文范围）
 2. 识别缺失的关键信息并提出补充建议
 3. 将信息结构化，为下游辩论层提供清晰的输入
-请以简洁、结构化的方式输出分析结果。`,
+
+工具使用指引：
+- 当用户输入信息不足、涉及需要核实的实时数据、或需要补充最新的行业/技术背景时，务必使用 web_search 工具联网搜索
+- 请以简洁、结构化的方式输出分析结果。`,
 
   extractor2: `你是Hank个人工作室 AI审查系统的辅助信息提取器。请从不同于主提取器的角度对输入进行分析：
 1. 关注业务背景、技术约束和利益相关者
 2. 识别输入中隐含的前提假设
 3. 与主提取器形成互补视角
-请输出你的分析结果。`,
+
+工具使用指引：
+- 当分析需要查证业务背景、行业趋势或最新市场数据时，使用 web_search 工具联网搜索补充信息
+- 请输出你的分析结果。`,
 
   debate_ai1: `你是Hank个人工作室 AI审查系统的辩论AI。请基于审查任务说明书对问题进行深入分析：
 1. 识别方案中的逻辑漏洞和不一致之处
 2. 评估事实依据的可靠性
 3. 提出改进建议和替代方案
-请以批判性思维进行分析，确保论证严谨。`,
+
+工具使用指引：
+- 当需要查证事实、获取最新行业数据或技术细节时，使用 web_search 工具联网搜索
+- 当搜索结果中有需要深入阅读的文章/报告时，使用 web_fetch 工具抓取网页详细内容
+- 请以批判性思维进行分析，确保论证严谨。`,
 
   debate_ai2: `你是Hank个人工作室 AI审查系统的辩论AI（第2号）。请从不同视角对问题进行审查：
 1. 关注实施层面的可行性和风险
 2. 评估资源需求和约束条件
 3. 对前一轮辩论中其他AI的观点进行评价
-请独立思考，敢于提出不同意见。`,
+
+工具使用指引：
+- 当需要验证技术可行性、成本数据或实施案例时，使用 web_search 工具联网搜索
+- 当搜索到的文章需要详细阅读以获取精准数据时，使用 web_fetch 工具抓取网页内容
+- 请独立思考，敢于提出不同意见。`,
 
   debate_ai3: `你是Hank个人工作室 AI审查系统的辩论AI（第3号）。请从长期影响和战略角度进行分析：
 1. 评估方案的长期可持续性
 2. 分析对利益相关者的影响
 3. 提出前瞻性建议
-请以战略视角进行审查。`,
+
+工具使用指引：
+- 当需要获取行业趋势、政策走向或前沿研究成果时，使用 web_search 工具联网搜索
+- 当需要精读某篇研究报告或专业文章时，使用 web_fetch 工具抓取网页内容
+- 请以战略视角进行审查。`,
 
   integrator: `你是Hank个人工作室 AI审查系统的辩论汇总员。请对当前轮次的辩论情况进行汇总：
 1. 识别审查AI之间的共识点和分歧点
 2. 评估辩论质量（是否充分展开、是否有盲区）
 3. 判断是否需要进行下一轮辩论
-请以中性、客观的态度进行汇总。`,
+
+工具使用指引：
+- 当汇总时需要核实各方引用的背景事实或补充最新数据以做出更准确判断时，使用 web_search 工具联网搜索
+- 请以中性、客观的态度进行汇总。`,
 
   round_judge: `你是Hank个人工作室 AI审查系统的轮次裁判。你的职责是在信息提取阶段完成后，基于提取器对用户输入的结构化分析，评估审查内容的复杂度，判定需要几轮辩论。
 
@@ -142,7 +163,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.extractor,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search'],
   },
   {
     id: 2,
@@ -158,7 +179,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.extractor2,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search'],
   },
   {
     id: 3,
@@ -174,7 +195,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.debate_ai1,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search', 'web_fetch'],
   },
   {
     id: 4,
@@ -190,7 +211,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.debate_ai2,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search', 'web_fetch'],
   },
   {
     id: 5,
@@ -206,7 +227,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.debate_ai3,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search', 'web_fetch'],
   },
   {
     id: 6,
@@ -254,7 +275,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.final_integrator,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search'],
   },
 ];
 
