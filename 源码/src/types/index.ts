@@ -121,7 +121,10 @@ export const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
 1. 综合所有AI的审查意见
 2. 汇总关键发现和建议
 3. 给出明确的结论和行动建议
-请以正式报告格式输出，结构清晰、逻辑连贯。`,
+
+工具使用指引：
+- 当生成报告时需要补充最新行业数据、核实关键事实或引用权威来源以增强报告可信度时，使用 web_search 工具联网搜索
+- 请以正式报告格式输出，结构清晰、逻辑连贯。`,
 };
 
 export const DEFAULT_CONFIGS: AIConfig[] = [
@@ -219,7 +222,7 @@ export const DEFAULT_CONFIGS: AIConfig[] = [
     isEnabled: true,
     systemPrompt: DEFAULT_SYSTEM_PROMPTS.integrator,
     enableWebSearch: false,
-    skills: [],
+    skills: ['web_search'],
   },
   {
     id: 7,
