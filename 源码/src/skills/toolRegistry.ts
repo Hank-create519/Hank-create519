@@ -144,10 +144,6 @@ export function getToolByName(name: string): ToolDef | undefined {
   return TOOL_REGISTRY.find(t => t.name === name);
 }
 
-export function getToolsByNames(names: string[]): ToolDef[] {
-  return names.map(n => getToolByName(n)).filter(Boolean) as ToolDef[];
-}
-
 // ============ OpenAI 工具格式转换 ============
 
 export function toOpenAITools(tools: ToolDef[]): Record<string, any>[] {

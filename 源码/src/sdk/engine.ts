@@ -207,10 +207,9 @@ async function executeReadFile(filePath: string): Promise<string> {
       const content = await (window as any).electronAPI.readFile(filePath);
       return sanitizeResult(content);
     }
-    // 浏览器环境兜底：尝试 fetch（仅限 public 可访问文件）
-    const res = await fetch(`file://${filePath}`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return `文件读取失败: HTTP ${res.status}`;
-    return sanitizeResult(await res.text());
+    // 非 Electron 环境：文件读取不可用
+    return '[文件读取不可用] 当前运行在浏览器环境，文件读取需要 Electron 主进程支持。' +
+      '\n请在 Electron 应用中运行以启用此功能，或通过 electronAPI.readFile 桥接。';
   } catch (err: any) {
     return `文件读取失败: ${err.message}`;
   }
@@ -232,76 +231,6 @@ async function executePythonSandbox(code: string): Promise<string> {
   } catch (err: any) {
     return `Python 执行错误: ${err.message}`;
   }
-}
-
-// ============ 轮数判定（内嵌算法，不调用 AI） ============
-
-/** 复杂度信号词及权重 */
-const COMPLEXITY_SIGNALS: [RegExp, number][] = [
-  // 高复杂度信号（每个 +3）
-  [/合规|监管|法律风险|诉讼|判刑|刑事/, 3],
-  [/战略决策|投资|收购|上市|融资/, 3],
-  [/多方利益|利益冲突|博弈|竞争格局/, 3],
-  [/安全漏洞|数据泄露|隐私合规|GDPR|个人信息保护/, 3],
-  // 中复杂度信号（每个 +2）
-  [/成本.*分析|ROI|预算.*评估|财务.*风险/, 2],
-  [/技术选型|架构.*设计|系统.*重构|性能.*瓶颈/, 2],
-  [/竞品|市场.*分析|用户.*研究|产品.*定位/, 2],
-  [/多维度|多个.*方面|以下.*几点|几.*维度/, 2],
-  [/复杂|深度|深入|全面.*评估|综合.*考量/, 2],
-  // 低复杂度信号（每个 +1）
-  [/风险|隐患|问题|缺陷|不足|改进/, 1],
-  [/建议|推荐|方案|策略|对策/, 1],
-];
-
-/** 维度词：出现越多说明问题越复杂 */
-const DIMENSION_MARKERS = [
-  /维度[：:]\s*[一二三四五六七八九十\d]/g,
-  /第[一二三四五六七八九十\d]\s*[，,]/g,
-  /^\d+[.、]/gm,
-];
-
-/**
- * 基于提取器输出内容的本地复杂度估算。
- * 不需要调用 AI，零成本、毫秒级。
- */
-function estimateRoundCount(
-  extractorOutputs: { roleName: string; outputContent: string }[],
-  userInput: string,
-): number {
-  const combined = extractorOutputs.map(o => o.outputContent).join('\n');
-  const totalText = combined + '\n' + userInput;
-
-  // 1. 信号词评分
-  let signalScore = 0;
-  for (const [pattern, weight] of COMPLEXITY_SIGNALS) {
-    const matches = totalText.match(new RegExp(pattern.source, 'gi'));
-    if (matches) signalScore += weight * Math.min(matches.length, 3); // 每种最多 ×3
-  }
-
-  // 2. 维度数量检测
-  let dimensionCount = 0;
-  for (const marker of DIMENSION_MARKERS) {
-    const m = totalText.match(new RegExp(marker.source, 'gi'));
-    if (m) dimensionCount += m.length;
-  }
-
-  // 3. 内容长度因子
-  const lengthScore = Math.min(Math.floor(combined.length / 800), 5); // 每 800 字 +1，上限 5
-
-  // 4. 综合评分 → 轮数
-  const total = signalScore + dimensionCount * 1.5 + lengthScore;
-
-  if (total >= 28) return 10;
-  if (total >= 24) return 9;
-  if (total >= 20) return 8;
-  if (total >= 17) return 7;
-  if (total >= 14) return 6;
-  if (total >= 12) return 5;
-  if (total >= 9)  return 4;
-  if (total >= 5)  return 3;
-  if (total >= 2)  return 2;
-  return 1;
 }
 
 // ============ 引擎状态管理 ============
@@ -420,7 +349,7 @@ export async function startReview(title: string, userInput: string, _promptInput
     round: number,
     systemMsg: string,
     userMsg: string,
-    phase: string,
+    phase: ReviewProgress['phase'],
     skills?: string[],
   ): Promise<void> {
     for (const cfg of configs) {
@@ -494,7 +423,7 @@ export async function startReview(title: string, userInput: string, _promptInput
         );
       }
 
-      updateProgress(phase as any, round);
+      updateProgress(phase, round);
     }
   }
 
@@ -507,9 +436,27 @@ export async function startReview(title: string, userInput: string, _promptInput
       await runPhase([cfg], 0, cfg.systemPrompt, userInput, 'preparation');
     }
 
-    // ---- 本地算法判定辩论轮数（内嵌，不调用 AI） ----
-    const extractorOutputs = _state.outputs.filter(o => o.roundNumber === 0 && o.status === 'completed' && (o.roleKey === 'extractor' || o.roleKey === 'extractor2'));
-    totalRounds = estimateRoundCount(extractorOutputs, userInput);
+    // ---- AI 裁判判定辩论轮数 ----
+    const judgeCfg = enabledConfigs.find(c => c.roleKey === 'round_judge');
+    if (judgeCfg && judgeCfg.isEnabled) {
+      try {
+        const extractorOutputs = _state.outputs
+          .filter(o => o.roundNumber === 0 && o.status === 'completed' && (o.roleKey === 'extractor' || o.roleKey === 'extractor2'))
+          .map(o => `[${o.roleName}]:\n${o.outputContent}`)
+          .join('\n\n');
+        const judgeInput = `请基于以下提取器对用户输入的分析结果，判定需要几轮辩论：\n\n用户输入：\n${userInput}\n\n提取器分析：\n${extractorOutputs}`;
+        const judgeResponse = await callAI(judgeCfg, [
+          { role: 'system', content: judgeCfg.systemPrompt },
+          { role: 'user', content: judgeInput },
+        ], abortController.signal);
+        const match = judgeResponse.match(/(\d+)\s*轮/);
+        totalRounds = match ? parseInt(match[1], 10) : 3;
+      } catch {
+        totalRounds = 3; // AI 调用失败，默认 3 轮
+      }
+    } else {
+      totalRounds = 3; // 无裁判配置，默认 3 轮
+    }
     totalRounds = Math.max(1, Math.min(10, totalRounds));
 
     // 用实际轮数重新计算总步数并更新任务

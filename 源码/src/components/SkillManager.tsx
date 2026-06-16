@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useReviewEngine } from '../sdk/react';
 import { getAllSkills, removeSkillsBySourceId } from '../skills/skillManager';
 import { importFromGitHub } from '../skills/githubImporter';
+import { updateConfig } from '../hooks/useDB';
 import { DEFAULT_SYSTEM_PROMPTS } from '../types';
 import type { AIConfig, DataSource, GitHubRepo, DatabaseConnection, SkillEntry, SkillAssignmentSnapshot } from '../types';
 
@@ -185,7 +186,7 @@ export default function SkillManager() {
   }
 
   // 应用配置
-  function handleApply() {
+  async function handleApply() {
     const newConfigs = configs.map(c => {
       const assigned = assignments[c.roleKey];
       if (!assigned) return c;
@@ -200,7 +201,24 @@ export default function SkillManager() {
     });
 
     updateConfigs(newConfigs);
-    alert('配置已应用！各 Agent 的 systemPrompt 和 skills 已更新。');
+
+    // 持久化到数据库
+    const failedRoles: string[] = [];
+    if (window.electronAPI?.db) {
+      for (const c of newConfigs) {
+        try {
+          await updateConfig(c.roleKey, { skills: c.skills, systemPrompt: c.systemPrompt });
+        } catch {
+          failedRoles.push(c.roleName);
+        }
+      }
+    }
+
+    if (failedRoles.length > 0) {
+      alert(`配置已应用，但以下角色写入数据库失败: ${failedRoles.join('、')}。请检查数据库连接后重试。`);
+    } else {
+      alert('配置已应用！各 Agent 的 systemPrompt 和 skills 已更新。');
+    }
   }
 
   // 导出配置

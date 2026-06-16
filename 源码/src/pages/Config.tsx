@@ -42,8 +42,6 @@ function getRoleSkillOptions(roleKey: string): SkillOption[] {
   return [];
 }
 
-let _debateCounter = 3;
-
 type ConfigTab = 'basic' | 'skills';
 
 export default function Config() {
@@ -68,13 +66,20 @@ export default function Config() {
   };
   const upAll = (cs: AIConfig[]) => updateConfigs(cs);
 
+  // 从现有 configs 推导下一个 debate 编号，避免模块级变量刷新重置导致 roleKey 冲突
+  const nextDebateNum = Math.max(
+    3,
+    ...configs
+      .filter(c => c.phase === 'debate' && c.roleKey.startsWith('ai_debate_'))
+      .map(c => parseInt(c.roleKey.replace('ai_debate_', ''), 10) || 0)
+  ) + 1;
+
   const addDebater = () => {
-    _debateCounter++;
     const maxId = configs.reduce((m, c) => Math.max(m, c.id), 0);
     const newAI: AIConfig = {
       id: maxId + 1,
-      roleKey: `ai_debate_${_debateCounter}`,
-      roleName: t('config.customAi', { n: _debateCounter }),
+      roleKey: `ai_debate_${nextDebateNum}`,
+      roleName: t('config.customAi', { n: nextDebateNum }),
       phase: 'debate',
       provider: 'custom',
       apiKey: '',
@@ -96,7 +101,7 @@ export default function Config() {
     if (openRole === rk) setOpenRole(null);
   };
 
-  const debateCount = configs.filter(c => c.phase === 'debate' && c.isEnabled).length;
+  const debateCount = configs.filter(c => c.phase === 'debate').length;
 
   if (activeTab === 'skills') {
     return <SkillManager />;
