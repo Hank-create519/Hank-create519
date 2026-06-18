@@ -28,17 +28,56 @@ export const TOOL_REGISTRY: ToolDef[] = [
     },
     risk: 'low',
     executor: async (args) => {
-      const q = encodeURIComponent(args.query || '');
-      // 占位实现：使用 DuckDuckGo HTML 搜索（无需 API Key）
-      // 后续可替换为 Serper/Google Custom Search 等付费 API
-      try {
+      const query = args.query || '';
+      if (!query.trim()) return '搜索关键词不能为空。';
+
+      const q = encodeURIComponent(query);
+      const USER_AGENT =
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+      // ========== 后端 1: Bing 搜索（HTML 抓取） ==========
+      const tryBing = async (): Promise<string> => {
+        const res = await fetch(`https://www.bing.com/search?q=${q}&setlang=zh-cn`, {
+          headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'zh-CN,zh;q=0.9' },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const html = await res.text();
+
+        // 解析 Bing 搜索结果块：<li class="b_algo"> ... <h2><a>标题</a></h2> ... <p>摘要</p> ... </li>
+        const blocks = html.match(/<li[^>]*class="b_algo"[^>]*>[\s\S]*?<\/li>/gi) || [];
+        const results: string[] = [];
+
+        for (const block of blocks) {
+          if (results.length >= 8) break;
+          // 提取标题
+          const titleMatch = block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
+          const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+
+          // 提取摘要
+          let snippet = '';
+          const snipMatch = block.match(/<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
+            || block.match(/<p[^>]*>([\s\S]{20,300}?)<\/p>/i);
+          if (snipMatch) {
+            snippet = snipMatch[1].replace(/<[^>]+>/g, '').replace(/&ensp;/g, ' ').replace(/&#0?\d+;/g, ' ').trim();
+          }
+
+          const entry = [title, snippet].filter(Boolean).join('\n   ');
+          if (entry.length > 10) results.push(entry);
+        }
+
+        if (results.length === 0) throw new Error('未提取到搜索结果');
+        return results.map((r, i) => `${i + 1}. ${r}`).join('\n\n');
+      };
+
+      // ========== 后端 2: DuckDuckGo HTML（兜底） ==========
+      const tryDuckDuckGo = async (): Promise<string> => {
         const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
           headers: { 'User-Agent': 'HankAI-Review/1.0' },
           signal: AbortSignal.timeout(15000),
         });
-        if (!res.ok) return `搜索请求失败: HTTP ${res.status}`;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const html = await res.text();
-        // 提取搜索结果摘要（基础 HTML 解析）
         const snippets: string[] = [];
         const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
         let m: RegExpExecArray | null;
@@ -46,10 +85,19 @@ export const TOOL_REGISTRY: ToolDef[] = [
           const text = m[1].replace(/<[^>]+>/g, '').trim();
           if (text) snippets.push(text);
         }
-        if (snippets.length === 0) return '未找到相关搜索结果。';
+        if (snippets.length === 0) throw new Error('未找到相关搜索结果');
         return snippets.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
-      } catch (err: any) {
-        return `搜索执行失败: ${err.message}`;
+      };
+
+      // ========== 执行：Bing 优先，DuckDuckGo 兜底 ==========
+      try {
+        return await tryBing();
+      } catch (bingErr: any) {
+        try {
+          return await tryDuckDuckGo();
+        } catch (ddgErr: any) {
+          return `搜索执行失败: Bing(${bingErr.message}), DuckDuckGo(${ddgErr.message})`;
+        }
       }
     },
   },

@@ -94,13 +94,61 @@ async function callAIWithTools(
     signal.addEventListener('abort', () => controller.abort());
   }
 
-  const MAX_ITERATIONS = 5;
+  const MAX_ITERATIONS = 15;
+  const WARN_AT = 10; // 提前警告的迭代阈值
 
   // 深拷贝 messages 以避免污染原始数组
   const localMessages: ToolMessage[] = messages.map(m => ({ ...m }));
 
+  // 在首条 system 消息后追加迭代限制提示
+  for (const m of localMessages) {
+    if (m.role === 'system' && typeof m.content === 'string') {
+      m.content += `\n\n[系统提示] 你最多可调用 ${MAX_ITERATIONS} 轮工具。请在获得足够信息后尽早给出最终文本回复，避免耗尽所有轮次导致任务失败。`;
+      break;
+    }
+  }
+
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
+
+    // 最后一轮：强制终止 — 如果前一轮返回了 tool_calls，不再执行，直接要求模型输出文本
+    if (iter === MAX_ITERATIONS - 1) {
+      // 检查上一条 assistant 消息是否仍有未处理的 tool_calls
+      const lastMsg = localMessages[localMessages.length - 1];
+      if (lastMsg?.role === 'assistant' && (lastMsg as any).tool_calls?.length > 0) {
+        // 不执行工具，直接追加强制终止消息，调用 API 不带 tools
+        localMessages.push({
+          role: 'user',
+          content:
+            '工具调用轮次已达上限。请立即基于上述所有对话历史中的搜索结果和已有信息，直接输出最终文字结论。不要再请求调用任何工具。',
+        });
+
+        const finalRes = await fetch(cfg.baseUrl || 'https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${cfg.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: cfg.modelName || 'gpt-4o',
+            messages: localMessages,
+            // 不带 tools，强制模型只能输出文本
+            temperature: cfg.temperature ?? 0.3,
+            max_tokens: cfg.maxTokens || 4096,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!finalRes.ok) {
+          const t = await finalRes.text();
+          throw new Error(`AI 强制终止调用失败 [${finalRes.status}]: ${t.slice(0, 200)}`);
+        }
+
+        const finalData = await finalRes.json();
+        const finalChoice = finalData.choices?.[0];
+        return finalChoice?.message?.content || '[工具循环耗尽 — 模型未返回文本]';
+      }
+    }
 
     const res = await fetch(cfg.baseUrl || 'https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -169,6 +217,12 @@ async function callAIWithTools(
           });
         }
 
+        // 接近上限时在结果末尾追加警告
+        if (iter >= WARN_AT) {
+          const remaining = MAX_ITERATIONS - iter - 1;
+          toolContent += `\n\n[系统提示] 工具调用轮次即将耗尽，剩余 ${remaining} 轮。请准备基于现有信息给出最终文字结论，不要再发起不必要的搜索。`;
+        }
+
         toolResults.push({
           role: 'tool',
           tool_call_id: tc.id,
@@ -187,11 +241,8 @@ async function callAIWithTools(
     return choice.message?.content || '';
   }
 
-  // 达到最大迭代次数：收集所有 assistant 文本回复并拼接
-  const texts = localMessages
-    .filter(m => m.role === 'assistant' && typeof m.content === 'string' && m.content)
-    .map(m => m.content as string);
-  return texts.join('\n\n') || '[工具循环达到最大迭代次数，未获得最终文本回复]';
+  // 兜底：所有迭代耗尽且无文本回复
+  return '[工具循环耗尽 — 所有轮次已用完，未获得文本回复]';
 }
 
 // ============ read_file 安全执行器 ============
