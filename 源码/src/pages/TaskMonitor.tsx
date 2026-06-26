@@ -110,7 +110,7 @@ export default function TaskMonitor() {
         )}
 
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32 }} className="anim-up">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }} className="anim-up">
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 4 }}>
               {task.title}
@@ -120,18 +120,39 @@ export default function TaskMonitor() {
               {progress.totalSteps > 0 && (
                 <><span style={{ color: 'var(--text-tertiary)' }}>·</span><span style={{ color: 'var(--text-tertiary)' }}>{progress.completedSteps}/{progress.totalSteps}</span></>
               )}
-              {progress.currentRound != null && progress.totalRounds != null && (
-                <><span style={{ color: 'var(--text-tertiary)' }}>·</span><span style={{ color: 'var(--text-tertiary)' }}>{progress.currentRound}/{progress.totalRounds} {t('monitor.round', { round: '' }).trim()}</span></>
-              )}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <button onClick={exportMD} className="btn btn-ghost" style={{ fontSize: 11, padding: '5px 12px' }}>
-              {t('monitor.exportMD')}
-            </button>
-            {isRunning && !isPaused && <button onClick={pause} className="btn btn-ghost" style={{ fontSize: 11, padding: '5px 12px' }}>{t('monitor.pause')}</button>}
-            {isPaused && <button onClick={resume} className="btn btn-secondary" style={{ fontSize: 11, padding: '5px 12px' }}>{t('monitor.resume')}</button>}
-            {(isRunning || isPaused) && <button onClick={stop} className="btn btn-danger" style={{ fontSize: 11, padding: '5px 12px' }}>{t('monitor.stop')}</button>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* 大号 ROUND 指示器 */}
+            {progress.currentRound != null && progress.totalRounds != null && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '10px 20px', borderRadius: 'var(--radius-md)',
+                background: progress.phase === 'debate' ? 'rgba(0,122,255,0.12)' : 'rgba(0,0,0,0.04)',
+                border: progress.phase === 'debate' ? '1px solid rgba(0,122,255,0.25)' : '1px solid rgba(0,0,0,0.06)',
+                ...(progress.phase === 'debate' ? { boxShadow: '0 0 16px rgba(0,122,255,0.10)' } : {}),
+              }}>
+                <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-tertiary)', letterSpacing: '0.1em' }}>ROUND</span>
+                <span style={{
+                  fontSize: 28, fontWeight: 700, letterSpacing: '-0.03em',
+                  color: progress.phase === 'debate' ? '#007AFF' : 'var(--text-secondary)',
+                  lineHeight: 1,
+                }}>
+                  {progress.currentRound}
+                </span>
+                <span style={{ fontSize: 14, color: 'var(--text-tertiary)', fontWeight: 300 }}>
+                  / {progress.totalRounds}
+                </span>
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button onClick={exportMD} className="btn btn-ghost" style={{ fontSize: 11, padding: '5px 12px' }}>
+                {t('monitor.exportMD')}
+              </button>
+              {isRunning && !isPaused && <button onClick={pause} className="btn btn-ghost" style={{ fontSize: 11, padding: '5px 12px' }}>{t('monitor.pause')}</button>}
+              {isPaused && <button onClick={resume} className="btn btn-secondary" style={{ fontSize: 11, padding: '5px 12px' }}>{t('monitor.resume')}</button>}
+              {(isRunning || isPaused) && <button onClick={stop} className="btn btn-danger" style={{ fontSize: 11, padding: '5px 12px' }}>{t('monitor.stop')}</button>}
+            </div>
           </div>
         </div>
 
@@ -160,24 +181,24 @@ export default function TaskMonitor() {
             <div key={round} className="anim-up" style={{ animationDelay: `${ri * 0.04}s` } as React.CSSProperties}>
               {/* Round label */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0' }}>
-                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.02)' }} />
+                <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.02)' }} />
                 <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.15em', textTransform: 'uppercase', flexShrink: 0 }}>
                   {round === 0 ? t('monitor.preparing') : round === 999 ? t('monitor.finalReport') : t('monitor.round', { round })}
                 </span>
-                <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.02)' }} />
+                <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.02)' }} />
               </div>
 
               {/* Items */}
               <div style={{
                 borderRadius: 'var(--radius-md)',
                 overflow: 'hidden',
-                border: '1px solid rgba(255,255,255,0.03)',
-                background: 'rgba(255,255,255,0.006)',
+                border: '1px solid rgba(0,0,0,0.03)',
+                background: 'rgba(0,0,0,0.006)',
               }}>
                 {items.map((o, oi) => {
                   const open = expanded.has(o.id);
                   return (
-                    <div key={o.id} style={{ borderTop: oi > 0 ? '1px solid rgba(255,255,255,0.02)' : 'none' }}>
+                    <div key={o.id} style={{ borderTop: oi > 0 ? '1px solid rgba(0,0,0,0.02)' : 'none' }}>
                       <button
                         onClick={() => toggle(o.id)}
                         style={{
@@ -186,15 +207,15 @@ export default function TaskMonitor() {
                           border: 'none', background: 'transparent', color: 'inherit',
                           transition: 'background 150ms',
                         }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.02)')}
                         onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                       >
                         <span
                           className={`status-dot ${o.status === 'running' ? 'active' : ''} ${o.status === 'completed' ? 'success' : ''} ${o.status === 'error' ? 'error' : ''}`}
-                          style={o.status === 'running' ? { background: '#ededf0', boxShadow: '0 0 6px rgba(255,255,255,0.2)', animation: 'status-pulse 2s ease-in-out infinite' } :
+                          style={o.status === 'running' ? { background: '#007AFF', boxShadow: '0 0 8px rgba(0,122,255,0.3)', animation: 'status-pulse 2s ease-in-out infinite' } :
                             o.status === 'completed' ? undefined :
                             o.status === 'error' ? undefined :
-                            { background: '#54545a', animation: 'none' }}
+                            { background: 'var(--mac-text-tertiary)', animation: 'none' }}
                         />
                         <span style={{
                           fontSize: 13, fontWeight: 500, flex: 1, letterSpacing: '-0.01em',
@@ -214,7 +235,7 @@ export default function TaskMonitor() {
                         }}>▼</span>
                       </button>
                       {open && (
-                        <div className="anim-in" style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(255,255,255,0.02)' }}>
+                        <div className="anim-in" style={{ padding: '0 16px 16px', borderTop: '1px solid rgba(0,0,0,0.02)' }}>
                           <pre className="ai-text" style={{ maxHeight: 380, overflowY: 'auto', paddingTop: 12 }}>
                             {o.outputContent || '…'}
                           </pre>
@@ -248,7 +269,7 @@ export default function TaskMonitor() {
                 }}>▼</span>
               </div>
               {showReport && (
-                <div className="anim-in" style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,0.02)' }}>
+                <div className="anim-in" style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(0,0,0,0.02)' }}>
                   <pre className="ai-text" style={{ maxHeight: '60vh', overflowY: 'auto', paddingTop: 16, fontSize: 13, lineHeight: 1.6 }}>
                     {finalReport.reportContent}
                   </pre>

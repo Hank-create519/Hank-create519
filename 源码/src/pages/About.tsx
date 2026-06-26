@@ -37,7 +37,7 @@ export default function About() {
             </div>
           </div>
 
-          <div style={{ marginTop: 20, padding: '16px', borderRadius: 8, background: 'rgba(79,108,247,0.04)', border: '1px solid rgba(79,108,247,0.08)' }}>
+          <div style={{ marginTop: 20, padding: '16px', borderRadius: 8, background: 'rgba(0,122,255,0.04)', border: '1px solid rgba(0,122,255,0.08)' }}>
             <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
               {t('about.note')}
             </p>
@@ -51,7 +51,7 @@ export default function About() {
           </div>
         </div>
 
-        <p style={{ fontSize: 10, color: 'rgba(180,190,230,0.25)', textAlign: 'center', marginTop: 32 }}>
+        <p style={{ fontSize: 10, color: 'var(--mac-text-tertiary)', textAlign: 'center', marginTop: 32 }}>
           {t('about.copyright')}
         </p>
       </div>

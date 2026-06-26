@@ -81,38 +81,41 @@ function AppInit() {
   return null;
 }
 
-function AmbientOrbs() {
-  return (
-    <>
-      <div style={{
-        position: 'fixed', top: '20%', left: '80%', width: '600px', height: '600px',
-        background: 'radial-gradient(ellipse at center, rgba(79,108,247,0.16) 0%, rgba(139,92,246,0.10) 30%, transparent 70%)',
-        filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0,
-        animation: 'orb-rotate 20s linear infinite',
-      }} />
-      <div style={{
-        position: 'fixed', top: '60%', left: '30%', width: '500px', height: '500px',
-        background: 'radial-gradient(ellipse at center, rgba(217,70,239,0.14) 0%, rgba(139,92,246,0.08) 30%, transparent 70%)',
-        filter: 'blur(50px)', pointerEvents: 'none', zIndex: 0,
-        animation: 'orb-rotate 25s linear infinite reverse',
-      }} />
-      <div style={{
-        position: 'fixed', top: '10%', left: '50%', width: '400px', height: '400px',
-        background: 'radial-gradient(ellipse at center, rgba(79,108,247,0.12) 0%, transparent 60%)',
-        filter: 'blur(40px)', pointerEvents: 'none', zIndex: 0,
-        animation: 'orb-pulse 6s ease-in-out infinite',
-      }} />
-    </>
-  );
-}
-
 function AppLayout() {
   return (
-    <div style={{ height: '100%', display: 'flex', background: 'var(--space-deepest)', position: 'relative' }}>
-      <AmbientOrbs />
-      {/* <ParticleField /> */}
+    <div
+      style={{
+        height: '100%',
+        background: '#F6F6F6',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Subtle ambient glow — Mac Light */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '-20%',
+          left: '60%',
+          width: '700px',
+          height: '700px',
+          background:
+            'radial-gradient(ellipse at center, rgba(0,122,255,0.04) 0%, rgba(88,86,214,0.02) 40%, transparent 70%)',
+          filter: 'blur(60px)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
       <Sidebar />
-      <main style={{ flex: 1, overflow: 'hidden', position: 'relative', zIndex: 2 }}>
+      <main
+        style={{
+          height: '100%',
+          marginLeft: 220,
+          overflow: 'hidden',
+          position: 'relative',
+          zIndex: 1,
+        }}
+      >
         <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 20 }}>
           <ThemeToggle />
         </div>

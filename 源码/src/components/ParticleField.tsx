@@ -13,8 +13,8 @@ interface Particle {
 }
 
 const COLORS = [
-  'rgba(79,108,247,',   // accent-blue
-  'rgba(139,92,246,',   // accent-violet
+  'rgba(0,122,255,',   // accent-blue
+  'rgba(88,86,214,',   // accent-violet
   'rgba(217,70,239,',   // accent-magenta
   'rgba(147,130,246,',  // mixed
 ];

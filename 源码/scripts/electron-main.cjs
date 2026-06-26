@@ -1,5 +1,7 @@
 // Hank个人工作室 AI审查系统 1.0 · Electron 主进程
-const { app, BrowserWindow, shell, ipcMain, safeStorage, clipboard, Menu } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, safeStorage, clipboard, Menu, nativeTheme } = require('electron');
+
+nativeTheme.themeSource = 'light';
 const path = require('path');
 const fs = require('fs');
 
@@ -419,7 +421,12 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 680,
     title: 'Hank个人工作室 AI审查系统',
-    backgroundColor: '#09090b',
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
+    transparent: true,
+    backgroundColor: '#00000000',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

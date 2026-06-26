@@ -11,95 +11,85 @@ export interface ToolDef {
   executor: (args: Record<string, string>) => Promise<string>;
 }
 
+// ============ 共享搜索执行器 ============
+
+const USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+async function executeSearch(query: string): Promise<string> {
+  if (!query.trim()) return '搜索关键词不能为空。';
+  const q = encodeURIComponent(query);
+
+  const tryBing = async (): Promise<string> => {
+    const res = await fetch(`https://www.bing.com/search?q=${q}&setlang=zh-cn`, {
+      headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'zh-CN,zh;q=0.9' },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const blocks = html.match(/<li[^>]*class="b_algo"[^>]*>[\s\S]*?<\/li>/gi) || [];
+    const results: string[] = [];
+    for (const block of blocks) {
+      if (results.length >= 8) break;
+      const titleMatch = block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
+      let snippet = '';
+      const snipMatch = block.match(/<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
+        || block.match(/<p[^>]*>([\s\S]{20,300}?)<\/p>/i);
+      if (snipMatch) {
+        snippet = snipMatch[1].replace(/<[^>]+>/g, '').replace(/&ensp;/g, ' ').replace(/&#0?\d+;/g, ' ').trim();
+      }
+      const entry = [title, snippet].filter(Boolean).join('\n   ');
+      if (entry.length > 10) results.push(entry);
+    }
+    if (results.length === 0) throw new Error('未提取到搜索结果');
+    return results.map((r, i) => `${i + 1}. ${r}`).join('\n\n');
+  };
+
+  const tryDuckDuckGo = async (): Promise<string> => {
+    const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
+      headers: { 'User-Agent': 'HankAI-Review/1.0' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const html = await res.text();
+    const snippets: string[] = [];
+    const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+    let m: RegExpExecArray | null;
+    while ((m = snippetRe.exec(html)) !== null && snippets.length < 10) {
+      const text = m[1].replace(/<[^>]+>/g, '').trim();
+      if (text) snippets.push(text);
+    }
+    if (snippets.length === 0) throw new Error('未找到相关搜索结果');
+    return snippets.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
+  };
+
+  try {
+    return await tryBing();
+  } catch (bingErr: any) {
+    try {
+      return await tryDuckDuckGo();
+    } catch (ddgErr: any) {
+      return `搜索执行失败: Bing(${bingErr.message}), DuckDuckGo(${ddgErr.message})`;
+    }
+  }
+}
+
 /** 所有可用工具的注册表 */
 export const TOOL_REGISTRY: ToolDef[] = [
+  // ============ 基础工具 ============
   {
     name: 'web_search',
     description: '搜索互联网获取最新信息。当需要查找当前事件、最新数据、或知识库之外的信息时使用。',
     parameters: {
       type: 'object',
       properties: {
-        query: {
-          type: 'string',
-          description: '搜索关键词或问题',
-        },
+        query: { type: 'string', description: '搜索关键词或问题' },
       },
       required: ['query'],
     },
     risk: 'low',
-    executor: async (args) => {
-      const query = args.query || '';
-      if (!query.trim()) return '搜索关键词不能为空。';
-
-      const q = encodeURIComponent(query);
-      const USER_AGENT =
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-      // ========== 后端 1: Bing 搜索（HTML 抓取） ==========
-      const tryBing = async (): Promise<string> => {
-        const res = await fetch(`https://www.bing.com/search?q=${q}&setlang=zh-cn`, {
-          headers: { 'User-Agent': USER_AGENT, 'Accept-Language': 'zh-CN,zh;q=0.9' },
-          signal: AbortSignal.timeout(12000),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const html = await res.text();
-
-        // 解析 Bing 搜索结果块：<li class="b_algo"> ... <h2><a>标题</a></h2> ... <p>摘要</p> ... </li>
-        const blocks = html.match(/<li[^>]*class="b_algo"[^>]*>[\s\S]*?<\/li>/gi) || [];
-        const results: string[] = [];
-
-        for (const block of blocks) {
-          if (results.length >= 8) break;
-          // 提取标题
-          const titleMatch = block.match(/<h2[^>]*>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
-          const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : '';
-
-          // 提取摘要
-          let snippet = '';
-          const snipMatch = block.match(/<p[^>]*class="[^"]*b_lineclamp[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
-            || block.match(/<p[^>]*>([\s\S]{20,300}?)<\/p>/i);
-          if (snipMatch) {
-            snippet = snipMatch[1].replace(/<[^>]+>/g, '').replace(/&ensp;/g, ' ').replace(/&#0?\d+;/g, ' ').trim();
-          }
-
-          const entry = [title, snippet].filter(Boolean).join('\n   ');
-          if (entry.length > 10) results.push(entry);
-        }
-
-        if (results.length === 0) throw new Error('未提取到搜索结果');
-        return results.map((r, i) => `${i + 1}. ${r}`).join('\n\n');
-      };
-
-      // ========== 后端 2: DuckDuckGo HTML（兜底） ==========
-      const tryDuckDuckGo = async (): Promise<string> => {
-        const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, {
-          headers: { 'User-Agent': 'HankAI-Review/1.0' },
-          signal: AbortSignal.timeout(15000),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const html = await res.text();
-        const snippets: string[] = [];
-        const snippetRe = /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
-        let m: RegExpExecArray | null;
-        while ((m = snippetRe.exec(html)) !== null && snippets.length < 10) {
-          const text = m[1].replace(/<[^>]+>/g, '').trim();
-          if (text) snippets.push(text);
-        }
-        if (snippets.length === 0) throw new Error('未找到相关搜索结果');
-        return snippets.map((s, i) => `${i + 1}. ${s}`).join('\n\n');
-      };
-
-      // ========== 执行：Bing 优先，DuckDuckGo 兜底 ==========
-      try {
-        return await tryBing();
-      } catch (bingErr: any) {
-        try {
-          return await tryDuckDuckGo();
-        } catch (ddgErr: any) {
-          return `搜索执行失败: Bing(${bingErr.message}), DuckDuckGo(${ddgErr.message})`;
-        }
-      }
-    },
+    executor: async (args) => executeSearch(args.query || ''),
   },
   {
     name: 'web_fetch',
@@ -107,10 +97,7 @@ export const TOOL_REGISTRY: ToolDef[] = [
     parameters: {
       type: 'object',
       properties: {
-        url: {
-          type: 'string',
-          description: '要抓取的网页完整 URL（必须以 https:// 开头）',
-        },
+        url: { type: 'string', description: '要抓取的网页完整 URL（必须以 https:// 开头）' },
       },
       required: ['url'],
     },
@@ -124,7 +111,6 @@ export const TOOL_REGISTRY: ToolDef[] = [
         });
         if (!res.ok) return `网页抓取失败: HTTP ${res.status}`;
         const html = await res.text();
-        // 简单提取正文：去除 script/style 标签后取纯文本
         let text = html
           .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
           .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
@@ -137,12 +123,129 @@ export const TOOL_REGISTRY: ToolDef[] = [
           .replace(/&nbsp;/g, ' ')
           .replace(/\s+/g, ' ')
           .trim();
-        // 截断到 4000 字符（safetyGuard 会再次清洗）
         if (text.length > 4000) text = text.slice(0, 4000) + '...';
         return text || '网页内容为空。';
       } catch (err: any) {
         return `网页抓取失败: ${err.message}`;
       }
+    },
+  },
+
+  // ============ 专业审查工具 ============
+  {
+    name: 'fact_check',
+    description: '事实核查工具。对一段声明中的具体事实进行搜索验证，返回验证结果和可信度评级。使用场景：辩论AI引用了某个"事实"需要核实、方案中出现了需要验证的数据。',
+    parameters: {
+      type: 'object',
+      properties: {
+        claim: { type: 'string', description: '需要核查的声明或事实陈述（原文）' },
+      },
+      required: ['claim'],
+    },
+    risk: 'low',
+    executor: async (args) => {
+      const claim = (args.claim || '').trim();
+      if (!claim) return '核查声明不能为空。';
+      // 搜索该声明的验证信息
+      const searchResult = await executeSearch(`"${claim.slice(0, 80)}" 事实核查 验证`);
+      return `[事实核查报告]\n待核查声明: ${claim}\n\n搜索验证结果:\n${searchResult}\n\n请在上述搜索结果基础上做出判断：该声明是否真实？可信度评级（高/中/低），并说明依据。`;
+    },
+  },
+  {
+    name: 'logical_fallacy_check',
+    description: '逻辑谬误检测工具。扫描一段论证文本，识别其中可能存在的逻辑谬误（如稻草人、滑坡、因果倒置、以偏概全、人身攻击等）。使用场景：辩论过程中需要拆解对方论证的逻辑结构。',
+    parameters: {
+      type: 'object',
+      properties: {
+        argument: { type: 'string', description: '需要检测的论证文本' },
+      },
+      required: ['argument'],
+    },
+    risk: 'low',
+    executor: async (args) => {
+      const arg = (args.argument || '').trim();
+      if (!arg) return '论证文本不能为空。';
+      // 搜索相关逻辑谬误类型以辅助分析
+      const searchResult = await executeSearch('常见逻辑谬误 种类 定义 稻草人 滑坡 因果倒置');
+      return `[逻辑谬误检测报告]\n待检测论证: ${arg.slice(0, 300)}...\n\n常见逻辑谬误类型参考:\n${searchResult}\n\n请基于上述谬误类型对论证进行逐句扫描，列出所有发现的谬误，格式: [谬误类型] + 具体位置（引用原文） + 为何属于该谬误。`;
+    },
+  },
+  {
+    name: 'data_audit',
+    description: '数据审计工具。检查方案/论证中出现的所有数字、百分比、金额、时间等数据声明，搜索验证其准确性。使用场景：方案中出现了具体的成本、市场规模、增长率等数字。',
+    parameters: {
+      type: 'object',
+      properties: {
+        statement: { type: 'string', description: '包含数据声明的文本段落' },
+      },
+      required: ['statement'],
+    },
+    risk: 'low',
+    executor: async (args) => {
+      const stmt = (args.statement || '').trim();
+      if (!stmt) return '数据声明不能为空。';
+      // 提取数字并搜索验证
+      const numbers = stmt.match(/\d[\d,.]*[万亿千百%％倍美欧人元¥\$€￡]*/g) || [];
+      const queries = numbers.slice(0, 3).map(n => `${n}`).join(' OR ');
+      const searchResult = queries ? await executeSearch(`${queries} 数据 统计`) : '未提取到数字';
+      return `[数据审计报告]\n待审计文本: ${stmt.slice(0, 400)}\n提取到的关键数字: ${numbers.join(', ')}\n\n搜索验证结果:\n${searchResult}\n\n请逐项验证每个数字：是否准确？来源是否可靠？与当前最新数据是否一致？`;
+    },
+  },
+  {
+    name: 'source_credibility',
+    description: '来源可信度评估工具。评估某个信息来源（网站、机构、个人）的可信度，基于搜索到的声誉、历史记录、资质等信息。使用场景：需要判断某方引用的来源是否可靠。',
+    parameters: {
+      type: 'object',
+      properties: {
+        source: { type: 'string', description: '需要评估的信息来源（URL、机构名、人名等）' },
+        context: { type: 'string', description: '该来源在什么上下文下被引用（可选）' },
+      },
+      required: ['source'],
+    },
+    risk: 'low',
+    executor: async (args) => {
+      const src = (args.source || '').trim();
+      const ctx = (args.context || '').trim();
+      if (!src) return '来源不能为空。';
+      const q = ctx ? `${src} ${ctx} 可信度 评价 争议` : `${src} 可信度 权威性 争议 资质`;
+      const searchResult = await executeSearch(q);
+      return `[来源可信度评估报告]\n评估对象: ${src}\n${ctx ? `引用上下文: ${ctx}\n` : ''}\n搜索验证结果:\n${searchResult}\n\n请基于搜索结果评估该来源的可信度（高/中/低），并给出信任分（1-10）和判断依据。`;
+    },
+  },
+  {
+    name: 'counter_example_search',
+    description: '反例搜索工具。搜索与某个主张或方案相反的真实案例、失败记录或反对方观点。使用场景：需要论证"这个方案在别处失败了"、"有更好的替代方案"。',
+    parameters: {
+      type: 'object',
+      properties: {
+        proposition: { type: 'string', description: '需要寻找反例的主张或方案描述' },
+      },
+      required: ['proposition'],
+    },
+    risk: 'low',
+    executor: async (args) => {
+      const prop = (args.proposition || '').trim();
+      if (!prop) return '主张描述不能为空。';
+      const searchResult = await executeSearch(`${prop.slice(0, 60)} 失败案例 反面例子 争议 批评 替代方案`);
+      return `[反例搜索报告]\n目标主张: ${prop}\n\n搜索结果:\n${searchResult}\n\n请基于搜索结果列出最有力的反例和反对观点，每条标注来源。`;
+    },
+  },
+  {
+    name: 'bias_detector',
+    description: '偏差检测工具。分析一段论述中可能存在的认知偏差（确认偏差、锚定效应、过度自信、幸存者偏差、框架效应等）。使用场景：辩论中发现对方的论证可能带有偏见。',
+    parameters: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: '需要检测偏差的论述文本' },
+      },
+      required: ['text'],
+    },
+    risk: 'low',
+    executor: async (args) => {
+      const txt = (args.text || '').trim();
+      if (!txt) return '论述文本不能为空。';
+      const searchResult = await executeSearch('认知偏差 类型 确认偏差 幸存者偏差 锚定效应 过度自信 框架效应');
+      return `[偏差检测报告]\n待检测文本: ${txt.slice(0, 400)}\n\n常见认知偏差类型参考:\n${searchResult}\n\n请检测文本中存在的所有认知偏差，格式: [偏差类型] + 表现（引用原文） + 为何判定为该偏差。`;
     },
   },
   {

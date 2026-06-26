@@ -4,6 +4,7 @@ import type { SkillEntry, SkillSource, ExternalSkill } from '../types';
 
 /** 内置技能定义 */
 const BUILTIN_SKILLS: SkillEntry[] = [
+  // 基础工具
   {
     name: 'web_search',
     description: '搜索互联网获取最新信息。当需要查找当前事件、最新数据、或知识库之外的信息时使用。',
@@ -26,6 +27,43 @@ const BUILTIN_SKILLS: SkillEntry[] = [
     name: 'python_exec',
     description: '在沙箱中执行 Python 代码并返回结果。代码受安全限制。',
     toolType: 'python_exec',
+    source: 'builtin',
+  },
+  // 专业审查工具
+  {
+    name: 'fact_check',
+    description: '事实核查工具。对声明中的具体事实进行搜索验证，返回可信度评级。',
+    toolType: 'fact_check',
+    source: 'builtin',
+  },
+  {
+    name: 'logical_fallacy_check',
+    description: '逻辑谬误检测工具。扫描论证文本，识别逻辑谬误（稻草人、滑坡、因果倒置等）。',
+    toolType: 'logical_fallacy_check',
+    source: 'builtin',
+  },
+  {
+    name: 'data_audit',
+    description: '数据审计工具。检查方案中的数字、百分比、金额等数据的准确性。',
+    toolType: 'data_audit',
+    source: 'builtin',
+  },
+  {
+    name: 'source_credibility',
+    description: '来源可信度评估工具。评估信息来源的可信度和权威性。',
+    toolType: 'source_credibility',
+    source: 'builtin',
+  },
+  {
+    name: 'counter_example_search',
+    description: '反例搜索工具。搜索与主张相反的真实案例、失败记录或反对观点。',
+    toolType: 'counter_example_search',
+    source: 'builtin',
+  },
+  {
+    name: 'bias_detector',
+    description: '偏差检测工具。分析论述中的认知偏差（确认偏差、幸存者偏差等）。',
+    toolType: 'bias_detector',
     source: 'builtin',
   },
 ];

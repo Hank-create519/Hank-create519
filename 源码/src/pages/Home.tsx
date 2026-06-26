@@ -33,11 +33,11 @@ export default function Home() {
           fontWeight: 600,
           letterSpacing: '0.1em',
           color: 'rgba(139,156,247,0.8)',
-          background: 'rgba(79,108,247,0.08)',
-          border: '1px solid rgba(79,108,247,0.12)',
+          background: 'rgba(0,122,255,0.08)',
+          border: '1px solid rgba(0,122,255,0.12)',
           marginBottom: 28,
         }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#4f6cf7', boxShadow: '0 0 8px rgba(79,108,247,0.5)' }} />
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#007AFF', boxShadow: '0 0 8px rgba(0,122,255,0.5)' }} />
           {t('home.badge')}
         </div>
 
@@ -81,18 +81,18 @@ export default function Home() {
               fontSize: 13,
               fontWeight: 600,
               color: '#fff',
-              background: 'linear-gradient(135deg, #4f6cf7, #8b5cf6)',
-              boxShadow: '0 4px 20px rgba(79,108,247,0.3)',
+              background: 'linear-gradient(135deg, #007AFF, #5856D6)',
+              boxShadow: '0 4px 20px rgba(0,122,255,0.3)',
               cursor: 'pointer',
               transition: 'transform 150ms var(--ease-out-expo), box-shadow 150ms var(--ease-out-expo)',
             }}
             onMouseEnter={e => {
               e.currentTarget.style.transform = 'scale(1.03)';
-              e.currentTarget.style.boxShadow = '0 6px 28px rgba(79,108,247,0.45)';
+              e.currentTarget.style.boxShadow = '0 6px 28px rgba(0,122,255,0.45)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 4px 20px rgba(79,108,247,0.3)';
+              e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,122,255,0.3)';
             }}
           >
             {t('home.startBtn')}
@@ -106,17 +106,17 @@ export default function Home() {
               fontSize: 13,
               fontWeight: 500,
               color: 'var(--text-secondary)',
-              background: 'rgba(255,255,255,0.04)',
-              boxShadow: '0 0 0 1px rgba(255,255,255,0.06)',
+              background: 'rgba(0,0,0,0.04)',
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.06)',
               cursor: 'pointer',
               transition: 'all 150ms var(--ease-out-expo)',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+              e.currentTarget.style.background = 'rgba(0,0,0,0.07)';
               e.currentTarget.style.color = 'var(--text-primary)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              e.currentTarget.style.background = 'rgba(0,0,0,0.04)';
               e.currentTarget.style.color = 'var(--text-secondary)';
             }}
           >
@@ -164,7 +164,7 @@ export default function Home() {
           <div className="divider" />
           <p style={{
             fontSize: 10,
-            color: 'rgba(180,190,230,0.25)',
+            color: 'var(--mac-text-tertiary)',
             letterSpacing: '0.1em',
             textAlign: 'center',
             marginTop: 12,

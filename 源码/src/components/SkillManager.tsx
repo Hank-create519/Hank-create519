@@ -17,21 +17,21 @@ interface AgentRole {
 }
 
 const AGENT_ROLES: AgentRole[] = [
-  { roleKey: 'extractor', roleName: '信息提取器', assignable: true },
-  { roleKey: 'extractor2', roleName: '辅助提取器', assignable: true },
-  { roleKey: 'debate_ai1', roleName: '审查AI-1', assignable: true },
-  { roleKey: 'debate_ai2', roleName: '审查AI-2', assignable: true },
-  { roleKey: 'debate_ai3', roleName: '审查AI-3', assignable: true },
-  { roleKey: 'integrator', roleName: '辩论汇总员', assignable: true },
+  { roleKey: 'extractor', roleName: '首席提取官', assignable: true },
+  { roleKey: 'extractor2', roleName: '反向提取官', assignable: true },
+  { roleKey: 'debate_ai1', roleName: '逻辑粉碎者', assignable: true },
+  { roleKey: 'debate_ai2', roleName: '实施审判官', assignable: true },
+  { roleKey: 'debate_ai3', roleName: '远见狙击手', assignable: true },
+  { roleKey: 'integrator', roleName: '辩驳计量仪', assignable: true },
   { roleKey: 'round_judge', roleName: '轮次裁判', assignable: false },
-  { roleKey: 'final_integrator', roleName: '最终报告员', assignable: true },
+  { roleKey: 'final_integrator', roleName: '首席裁决官', assignable: true },
 ];
 
 // ============ 来源图标映射 ============
 
 function SourceBadge({ source }: { source: SkillEntry['source'] }) {
   const map: Record<string, { icon: string; color: string; label: string }> = {
-    builtin: { icon: '🏠', color: '#4f6cf7', label: '内置' },
+    builtin: { icon: '🏠', color: '#007AFF', label: '内置' },
     github: { icon: '🐙', color: '#6e5494', label: 'GitHub' },
     database: { icon: '🗄️', color: '#10b981', label: '数据库' },
   };
@@ -151,6 +151,12 @@ export default function SkillManager() {
     const hasFetch = skillNames.includes('web_fetch');
     const hasReadFile = skillNames.includes('read_file');
     const hasPython = skillNames.includes('python_exec');
+    const hasFactCheck = skillNames.includes('fact_check');
+    const hasLogicalFallacy = skillNames.includes('logical_fallacy_check');
+    const hasDataAudit = skillNames.includes('data_audit');
+    const hasSourceCred = skillNames.includes('source_credibility');
+    const hasCounterExample = skillNames.includes('counter_example_search');
+    const hasBiasDetector = skillNames.includes('bias_detector');
 
     if (hasSearch) {
       lines.push('- 当需要查找最新信息、核实事实或补充行业数据时，使用 web_search 工具联网搜索');
@@ -164,13 +170,23 @@ export default function SkillManager() {
     if (hasPython) {
       lines.push('- 当需要执行数据分析、计算或处理时，使用 python_exec 工具在沙箱中执行 Python 代码');
     }
-
-    // 额外技能
-    const extraSkills = skillNames.filter(
-      n => !['web_search', 'web_fetch', 'read_file', 'python_exec'].includes(n),
-    );
-    for (const sk of extraSkills) {
-      lines.push(`- 当任务涉及相关领域时，使用 ${sk} 工具`);
+    if (hasFactCheck) {
+      lines.push('- 当需要对声明或方案中的具体事实进行验证时，使用 fact_check 工具搜索核实');
+    }
+    if (hasLogicalFallacy) {
+      lines.push('- 当需要拆解对方论证逻辑、识别逻辑谬误时，使用 logical_fallacy_check 工具扫描论证文本');
+    }
+    if (hasDataAudit) {
+      lines.push('- 当方案中出现数字、百分比、金额等定量声明时，使用 data_audit 工具验证数据准确性');
+    }
+    if (hasSourceCred) {
+      lines.push('- 当需要评估信息来源的权威性和可信度时，使用 source_credibility 工具');
+    }
+    if (hasCounterExample) {
+      lines.push('- 当需要寻找反面案例或失败记录来反驳主张时，使用 counter_example_search 工具');
+    }
+    if (hasBiasDetector) {
+      lines.push('- 当怀疑对方论证存在认知偏差时，使用 bias_detector 工具检测偏差类型');
     }
 
     return lines.join('\n');
@@ -409,7 +425,7 @@ export default function SkillManager() {
           }}>
             <div style={{
               background: 'var(--space-deepest)', borderRadius: 'var(--radius-md)',
-              border: '1px solid rgba(255,255,255,0.08)', padding: 28, width: 460,
+              border: '1px solid rgba(0,0,0,0.08)', padding: 28, width: 460,
               maxHeight: '80vh', overflowY: 'auto',
             }}>
               <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>添加数据源</h3>
@@ -425,8 +441,8 @@ export default function SkillManager() {
                     onClick={() => setDsType(t)}
                     style={{
                       flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
-                      border: dsType === t ? '1px solid rgba(79,108,247,0.4)' : '1px solid rgba(255,255,255,0.06)',
-                      background: dsType === t ? 'rgba(79,108,247,0.12)' : 'transparent',
+                      border: dsType === t ? '1px solid rgba(0,122,255,0.4)' : '1px solid rgba(0,0,0,0.06)',
+                      background: dsType === t ? 'rgba(0,122,255,0.12)' : 'transparent',
                       color: 'var(--text-primary)', fontSize: 12, cursor: 'pointer',
                       transition: 'all 150ms',
                     }}
@@ -516,7 +532,7 @@ export default function SkillManager() {
         {displaySkills.length === 0 ? (
           <div style={{
             padding: '32px 16px', textAlign: 'center', fontSize: 13,
-            color: 'var(--text-tertiary)', border: '1px dashed rgba(255,255,255,0.06)',
+            color: 'var(--text-tertiary)', border: '1px dashed rgba(0,0,0,0.06)',
             borderRadius: 'var(--radius-md)', marginBottom: 24,
           }}>
             暂无可用技能。请先添加数据源导入外部技能，或勾选下方内置技能分配给 Agent。
@@ -541,7 +557,7 @@ export default function SkillManager() {
                   <tr
                     key={sk.name}
                     style={{
-                      background: idx % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                      background: idx % 2 === 0 ? 'rgba(0,0,0,0.01)' : 'transparent',
                     }}
                   >
                     <td style={tdStyle}>
@@ -556,7 +572,7 @@ export default function SkillManager() {
                           type="checkbox"
                           checked={assignments[role.roleKey]?.has(sk.name) || false}
                           onChange={() => toggleAssignment(role.roleKey, sk.name)}
-                          style={{ accentColor: '#4f6cf7', cursor: 'pointer' }}
+                          style={{ accentColor: '#007AFF', cursor: 'pointer' }}
                         />
                       </td>
                     ))}
@@ -576,7 +592,7 @@ export default function SkillManager() {
         <div style={{
           display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24,
           padding: '12px', borderRadius: 'var(--radius-sm)',
-          border: '1px solid rgba(255,255,255,0.04)',
+          border: '1px solid rgba(0,0,0,0.04)',
         }}>
           {skills.filter(s => s.source === 'builtin').map(sk => (
             <div
@@ -584,7 +600,7 @@ export default function SkillManager() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-                background: 'rgba(79,108,247,0.08)', fontSize: 12,
+                background: 'rgba(0,122,255,0.08)', fontSize: 12,
                 color: 'var(--text-secondary)',
               }}
             >
@@ -598,8 +614,8 @@ export default function SkillManager() {
         {previewRole && (
           <div style={{
             marginBottom: 24, padding: 16, borderRadius: 'var(--radius-md)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            background: 'rgba(255,255,255,0.015)',
+            border: '1px solid rgba(0,0,0,0.06)',
+            background: 'rgba(0,0,0,0.015)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', letterSpacing: '0.06em' }}>
@@ -630,7 +646,7 @@ export default function SkillManager() {
               className="btn btn-secondary"
               style={{
                 fontSize: 11, padding: '4px 10px',
-                background: previewRole === r.roleKey ? 'rgba(79,108,247,0.15)' : undefined,
+                background: previewRole === r.roleKey ? 'rgba(0,122,255,0.15)' : undefined,
               }}
             >
               {r.roleName} 预览
@@ -666,7 +682,7 @@ function SectionLabel({ label }: { label: string }) {
       </span>
       <div style={{
         flex: 1, height: 1,
-        background: 'linear-gradient(90deg, rgba(79,108,247,0.15), rgba(139,92,246,0.06), transparent)',
+        background: 'linear-gradient(90deg, rgba(0,122,255,0.15), rgba(88,86,214,0.06), transparent)',
       }} />
     </div>
   );
@@ -679,7 +695,7 @@ function DataSourceCard({ ds, onRemove }: { ds: DataSource; onRemove: () => void
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-      border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.015)',
+      border: '1px solid rgba(0,0,0,0.06)', background: 'rgba(0,0,0,0.015)',
       fontSize: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -750,11 +766,11 @@ const thStyle: React.CSSProperties = {
   color: 'var(--text-tertiary)',
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  borderBottom: '1px solid rgba(0,0,0,0.06)',
 };
 
 const tdStyle: React.CSSProperties = {
   padding: '10px 12px',
-  borderBottom: '1px solid rgba(255,255,255,0.03)',
+  borderBottom: '1px solid rgba(0,0,0,0.03)',
   color: 'var(--text-secondary)',
 };

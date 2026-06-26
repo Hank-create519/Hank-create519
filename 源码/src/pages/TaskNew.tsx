@@ -157,14 +157,14 @@ export default function TaskNew() {
                         textAlign: 'left',
                         padding: '14px 16px',
                         borderRadius: 'var(--radius-lg)',
-                        border: selected ? 'none' : '1px solid rgba(255,255,255,0.04)',
-                        background: selected ? 'rgba(79,108,247,0.06)' : 'transparent',
+                        border: selected ? 'none' : '1px solid rgba(0,0,0,0.04)',
+                        background: selected ? 'rgba(0,122,255,0.06)' : 'transparent',
                         cursor: isRunning ? 'not-allowed' : 'pointer',
                         opacity: isRunning ? 0.5 : 1,
                         transition: 'transform 150ms var(--ease-out-expo), box-shadow 150ms var(--ease-out-expo)',
                       }}
                       onMouseEnter={e => {
-                        if (!isRunning) { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(79,108,247,0.08)'; }
+                        if (!isRunning) { e.currentTarget.style.transform = 'scale(1.02)'; e.currentTarget.style.boxShadow = '0 0 20px rgba(0,122,255,0.08)'; }
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none';
@@ -225,21 +225,21 @@ export default function TaskNew() {
                 style={isRunning ? {
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   padding: '8px 24px', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 500,
-                  background: 'rgba(255,255,255,0.04)', color: 'var(--text-tertiary)', border: 'none',
+                  background: 'rgba(0,0,0,0.04)', color: 'var(--text-tertiary)', border: 'none',
                   opacity: 0.5, cursor: 'not-allowed',
                 } : {
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   padding: '10px 28px', borderRadius: 10, border: 'none', fontSize: 13, fontWeight: 600,
                   color: '#fff', cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #4f6cf7, #8b5cf6)',
-                  boxShadow: '0 4px 20px rgba(79,108,247,0.3)',
+                  background: 'linear-gradient(135deg, #007AFF, #5856D6)',
+                  boxShadow: '0 4px 20px rgba(0,122,255,0.3)',
                   transition: 'transform 150ms var(--ease-out-expo), box-shadow 150ms var(--ease-out-expo)',
                 }}
                 onMouseEnter={e => {
-                  if (!isRunning) { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(79,108,247,0.45)'; }
+                  if (!isRunning) { e.currentTarget.style.transform = 'scale(1.03)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(0,122,255,0.45)'; }
                 }}
                 onMouseLeave={e => {
-                  if (!isRunning) { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(79,108,247,0.3)'; }
+                  if (!isRunning) { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,122,255,0.3)'; }
                 }}
               >
                 {isRunning ? t('newReview.running') : t('newReview.submit')}

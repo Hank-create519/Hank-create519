@@ -56,8 +56,8 @@ export default function MouseGlow() {
         pointerEvents: 'none',
         zIndex: 9999,
         background: theme === 'dark'
-          ? 'radial-gradient(ellipse at center, rgba(139,156,247,0.08) 0%, rgba(94,106,210,0.04) 25%, rgba(139,92,246,0.02) 50%, transparent 100%)'
-          : 'radial-gradient(ellipse at center, rgba(94,106,210,0.04) 0%, rgba(139,156,247,0.02) 25%, rgba(124,58,237,0.01) 50%, transparent 100%)',
+          ? 'radial-gradient(ellipse at center, rgba(0,122,255,0.06) 0%, rgba(88,86,214,0.03) 25%, rgba(0,122,255,0.01) 50%, transparent 100%)'
+          : 'radial-gradient(ellipse at center, rgba(0,122,255,0.04) 0%, rgba(88,86,214,0.02) 25%, rgba(0,122,255,0.01) 50%, transparent 100%)',
         filter: 'blur(20px)',
         willChange: 'transform',
       }}

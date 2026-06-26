@@ -25,6 +25,12 @@ function getRoleSkillOptions(roleKey: string): SkillOption[] {
   const ALL_SKILLS: SkillOption[] = [
     { key: 'web_search', label: '联网搜索' },
     { key: 'web_fetch', label: '网页抓取' },
+    { key: 'fact_check', label: '事实核查' },
+    { key: 'logical_fallacy_check', label: '逻辑谬误检测' },
+    { key: 'data_audit', label: '数据审计' },
+    { key: 'source_credibility', label: '来源可信度' },
+    { key: 'counter_example_search', label: '反例搜索' },
+    { key: 'bias_detector', label: '偏差检测' },
   ];
 
   if (roleKey === 'extractor' || roleKey === 'extractor2') {
@@ -111,7 +117,7 @@ export default function Config() {
     <div style={{ height: '100%', overflowY: 'auto' }}>
       <div style={{ maxWidth: 580, margin: '0 auto', padding: '48px 40px' }}>
         {/* Tab bar */}
-        <div style={{ display: 'flex', gap: 0, marginBottom: 32, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 32, borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
           {([
             { key: 'basic' as ConfigTab, label: '基础配置' },
             { key: 'skills' as ConfigTab, label: '技能管理' },
@@ -125,7 +131,7 @@ export default function Config() {
                 fontWeight: activeTab === tab.key ? 600 : 400,
                 color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-tertiary)',
                 border: 'none',
-                borderBottom: activeTab === tab.key ? '2px solid #4f6cf7' : '2px solid transparent',
+                borderBottom: activeTab === tab.key ? '2px solid #007AFF' : '2px solid transparent',
                 background: 'transparent',
                 cursor: 'pointer',
                 transition: 'all 150ms',
@@ -207,7 +213,7 @@ function SectionLabel({ label }: { label: string }) {
       </span>
       <div style={{
         flex: 1, height: 1,
-        background: 'linear-gradient(90deg, rgba(79,108,247,0.15), rgba(139,92,246,0.06), transparent)',
+        background: 'linear-gradient(90deg, rgba(0,122,255,0.15), rgba(88,86,214,0.06), transparent)',
       }} />
     </div>
   );
@@ -267,15 +273,15 @@ function ConfigCard({
     <div style={{
       marginBottom: 8,
       borderRadius: 'var(--radius-md)',
-      border: isOpen ? '1px solid rgba(79,108,247,0.20)' : '1px solid rgba(255,255,255,0.04)',
+      border: isOpen ? '1px solid rgba(0,122,255,0.20)' : '1px solid rgba(0,0,0,0.04)',
       transition: 'all 250ms var(--ease-out-expo)',
-      boxShadow: isOpen ? '0 0 20px rgba(79,108,247,0.08)' : 'none',
+      boxShadow: isOpen ? '0 0 20px rgba(0,122,255,0.08)' : 'none',
     }}>
       <div style={{
         borderRadius: 'var(--radius-md)',
         background: isOpen
-          ? 'linear-gradient(180deg, rgba(79,108,247,0.06) 0%, rgba(12,12,48,0.65) 100%)'
-          : 'rgba(255,255,255,0.015)',
+          ? 'linear-gradient(180deg, rgba(0,122,255,0.06) 0%, rgba(255,255,255,0.85) 100%)'
+          : 'rgba(0,0,0,0.015)',
         transition: 'background 250ms var(--ease-out-expo)',
       }}>
         <button
@@ -288,7 +294,7 @@ function ConfigCard({
             color: 'inherit',
             transition: 'background 150ms',
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.01)'; }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,0,0,0.01)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
         >
           <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-tertiary)', width: 28, flexShrink: 0 }}>
@@ -344,7 +350,7 @@ function ConfigCard({
         {isOpen && (
           <div
             className="config-card-content open"
-            style={{ borderTop: '1px solid rgba(255,255,255,0.02)' }}
+            style={{ borderTop: '1px solid rgba(0,0,0,0.02)' }}
           >
             <div>
             <div style={{ padding: '0 16px 20px', paddingTop: 16 }}>
@@ -408,7 +414,7 @@ function ConfigCard({
                   <input
                     type="range" min="0" max="2" step="0.1" value={cfg.temperature}
                     onChange={e => onUpdate(cfg.roleKey, { temperature: parseFloat(e.target.value) })}
-                    style={{ width: '100%', accentColor: '#4f6cf7', height: 3 }}
+                    style={{ width: '100%', accentColor: '#007AFF', height: 3 }}
                   />
                 </div>
 
@@ -436,7 +442,7 @@ function ConfigCard({
                                   : cur.filter(k => k !== sk.key);
                                 onUpdate(cfg.roleKey, { skills: next });
                               }}
-                              style={{ accentColor: '#4f6cf7' }}
+                              style={{ accentColor: '#007AFF' }}
                             />
                             {sk.label}
                           </label>
@@ -469,7 +475,7 @@ function ConfigCard({
 
         <div style={{
           padding: '8px 16px',
-          borderTop: '1px solid rgba(255,255,255,0.02)',
+          borderTop: '1px solid rgba(0,0,0,0.02)',
           display: 'flex',
           alignItems: 'center',
           gap: 8,

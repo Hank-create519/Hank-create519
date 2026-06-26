@@ -102,7 +102,7 @@ export default function History() {
     switch (s) {
       case 'completed': return { bg: 'rgba(0,168,107,0.08)', text: '#00a86b' };
       case 'error': return { bg: 'rgba(229,72,77,0.08)', text: '#e5484d' };
-      default: return { bg: 'rgba(255,255,255,0.04)', text: '#8e90a0' };
+      default: return { bg: 'rgba(0,0,0,0.04)', text: '#86868B' };
     }
   };
 
@@ -170,7 +170,7 @@ export default function History() {
           <div className="anim-up" style={{ textAlign: 'center', padding: '64px 0', animationDelay: '0.1s' } as React.CSSProperties}>
             <div style={{
               width: 56, height: 56, borderRadius: '50%', margin: '0 auto 24px',
-              background: 'radial-gradient(circle, rgba(79,108,247,0.06) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(0,122,255,0.06) 0%, transparent 70%)',
             }} />
             <p style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500, marginBottom: 6 }}>
               {allEntries.length === 0 ? t('history.noRecords') : t('history.noMatch')}
@@ -213,7 +213,7 @@ export default function History() {
                     )}
                   </div>
                   {fr && (
-                    <details style={{ paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.03)' }}>
+                    <details style={{ paddingTop: 12, borderTop: '1px solid rgba(0,0,0,0.03)' }}>
                       <summary style={{
                         fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600,
                         cursor: 'pointer', outline: 'none',
